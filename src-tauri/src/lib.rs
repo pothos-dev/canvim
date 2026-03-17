@@ -77,6 +77,7 @@ enter_resize = "r"
 connect = "c"
 toggle_select = "v"
 deselect_all = "V"
+enter_visual = "v"
 color_red = "1"
 color_orange = "2"
 color_yellow = "3"
@@ -105,6 +106,14 @@ down = "j"
 exit = "Escape"
 
 [keybindings.connect]
+left = "h"
+right = "l"
+up = "k"
+down = "j"
+confirm = "Enter"
+exit = "Escape"
+
+[keybindings.visual]
 left = "h"
 right = "l"
 up = "k"
@@ -154,6 +163,7 @@ config_struct!(NormalKeybindings {
     connect: String = "c".into(),
     toggle_select: String = "v".into(),
     deselect_all: String = "V".into(),
+    enter_visual: String = "v".into(),
     color_red: String = "1".into(),
     color_orange: String = "2".into(),
     color_yellow: String = "3".into(),
@@ -193,6 +203,15 @@ config_struct!(ConnectKeybindings {
     exit: String = "Escape".into(),
 });
 
+config_struct!(VisualKeybindings {
+    left: String = "h".into(),
+    right: String = "l".into(),
+    up: String = "k".into(),
+    down: String = "j".into(),
+    confirm: String = "Enter".into(),
+    exit: String = "Escape".into(),
+});
+
 config_struct!(InsertKeybindings {
     exit: String = "Escape".into(),
 });
@@ -209,6 +228,8 @@ pub struct ConfigKeybindings {
     pub connect: ConnectKeybindings,
     #[serde(default)]
     pub insert: InsertKeybindings,
+    #[serde(default)]
+    pub visual: VisualKeybindings,
 }
 
 impl Default for ConfigKeybindings {
@@ -219,6 +240,7 @@ impl Default for ConfigKeybindings {
             resize: ResizeKeybindings::default(),
             connect: ConnectKeybindings::default(),
             insert: InsertKeybindings::default(),
+            visual: VisualKeybindings::default(),
         }
     }
 }

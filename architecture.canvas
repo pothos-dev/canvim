@@ -7,7 +7,7 @@
       "y": -200.0,
       "width": 1800.0,
       "height": 900.0,
-      "color": "5",
+      "color": "",
       "label": "SvelteKit Frontend (SPA)"
     },
     {
@@ -34,10 +34,10 @@
       "type": "text",
       "id": "a1b2c3d4e5f60010",
       "x": -200.0,
-      "y": -140.0,
+      "y": -180.0,
       "width": 400.0,
       "height": 140.0,
-      "color": "5",
+      "color": "",
       "text": "## +page.svelte\nApp entry point. Calls `store.init()` which fetches config + loads canvas file via Tauri IPC."
     },
     {
@@ -47,7 +47,7 @@
       "y": 60.0,
       "width": 500.0,
       "height": 200.0,
-      "color": "5",
+      "color": "",
       "text": "## canvas-store.svelte.ts\nReactive state store (Svelte 5 `$state` runes).\n\n**State:** nodes, edges, viewport, selection, mode\n**Methods:** addNode, moveNode, resizeNode, addEdge, pan, zoom\n**Auto-save:** 500ms debounced `invoke(\"save_canvas\")`"
     },
     {
@@ -76,7 +76,7 @@
       "x": 700.0,
       "y": 230.0,
       "width": 340.0,
-      "height": 100.0,
+      "height": 160.0,
       "color": "1",
       "text": "## Edge.svelte\nSVG cubic bezier curves with arrows and labels. Uses shared geometry for anchor points and paths."
     },
@@ -84,17 +84,17 @@
       "type": "text",
       "id": "a1b2c3d4e5f60060",
       "x": -850.0,
-      "y": -40.0,
+      "y": -100.0,
       "width": 280.0,
       "height": 200.0,
-      "color": "3",
+      "color": "",
       "text": "## types.ts\nTypeScript types matching JSON Canvas spec.\n\nCanvasNode (Text|File|Link|Group), Edge, Canvas, Config, Viewport, Point, Side"
     },
     {
       "type": "text",
       "id": "a1b2c3d4e5f60065",
       "x": -850.0,
-      "y": 170.0,
+      "y": 150.0,
       "width": 280.0,
       "height": 140.0,
       "color": "3",
@@ -104,7 +104,7 @@
       "type": "text",
       "id": "a1b2c3d4e5f60066",
       "x": -850.0,
-      "y": 340.0,
+      "y": 320.0,
       "width": 320.0,
       "height": 160.0,
       "color": "3",
@@ -135,9 +135,9 @@
       "id": "a1b2c3d4e5f60070",
       "x": -200.0,
       "y": 500.0,
-      "width": 400.0,
-      "height": 180.0,
-      "text": "## Tauri IPC Bridge\n`@tauri-apps/api/core.invoke()`\n\n```\ninit() → { config, file_path }\nread_canvas(path) → Canvas\nsave_canvas(path, data) → Result\n```"
+      "width": 420.0,
+      "height": 160.0,
+      "text": "## Tauri IPC Bridge\n`@tauri-apps/api/core.invoke()`\n\n```\ninit() → { config, file_path }\nread_canvas(path) → Canvas\nsave_canvas(path, data) → Result\n```\n\n"
     },
     {
       "type": "text",

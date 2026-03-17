@@ -111,6 +111,7 @@ export interface NormalKeybindings {
   connect: string;
   toggle_select: string;
   deselect_all: string;
+  enter_visual: string;
   color_red: string;
   color_orange: string;
   color_yellow: string;
@@ -141,12 +142,17 @@ export interface InsertKeybindings {
   exit: string;
 }
 
+export interface VisualKeybindings extends DirectionalKeybindings {
+  confirm: string;
+}
+
 export interface ConfigKeybindings {
   normal: NormalKeybindings;
   move: DirectionalKeybindings;
   resize: DirectionalKeybindings;
   connect: ConnectKeybindings;
   insert: InsertKeybindings;
+  visual: VisualKeybindings;
 }
 
 export interface Config {

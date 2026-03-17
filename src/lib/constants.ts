@@ -6,6 +6,7 @@ export const UI_COLORS = {
   mode_resize: "#e9973f",
   mode_move: "#e0de71",
   mode_search: "#bb9af7",
+  mode_visual: "#ff9e64",
 
   // Selection & interaction
   selected: "#7aa2f7",

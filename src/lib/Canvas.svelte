@@ -280,7 +280,7 @@
   }
 
   function handleMouseDown(e: MouseEvent) {
-    if (store.mode === "insert" || store.mode === "connect" || store.mode === "move" || store.mode === "resize" || store.mode === "search") return;
+    if (store.mode === "insert" || store.mode === "connect" || store.mode === "move" || store.mode === "resize" || store.mode === "search" || store.mode === "visual") return;
     if (e.button !== 0) return;
 
     const canvas = screenToCanvas(e.clientX, e.clientY);
@@ -383,11 +383,12 @@
   }
 
   const MODE_LABELS: Record<string, string> = {
-    normal: "NORMAL", insert: "INSERT", connect: "CONNECT", move: "MOVE", resize: "RESIZE", search: "SEARCH",
+    normal: "NORMAL", insert: "INSERT", connect: "CONNECT", move: "MOVE", resize: "RESIZE", search: "SEARCH", visual: "VISUAL",
   };
   const MODE_COLORS: Record<string, string> = {
     normal: UI_COLORS.mode_normal, insert: UI_COLORS.mode_insert, connect: UI_COLORS.mode_connect,
     move: UI_COLORS.mode_move, resize: UI_COLORS.mode_resize, search: UI_COLORS.mode_search,
+    visual: UI_COLORS.mode_visual,
   };
   const modeLabel = $derived(MODE_LABELS[store.mode] ?? "NORMAL");
   const modeColor = $derived(MODE_COLORS[store.mode] ?? UI_COLORS.mode_normal);
@@ -443,6 +444,7 @@
   onclick={handleBackgroundClick}
   style="
     --connect-color: {UI_COLORS.connect_color};
+    --visual-color: {UI_COLORS.mode_visual};
     --selected-color: {UI_COLORS.selected};
     --subtle-border: {UI_COLORS.subtle_border};
     --edge-label-bg: {colors.background};
@@ -460,7 +462,7 @@
   "
 >
   <!-- Crosshair -->
-  <div class="crosshair" class:hidden={store.mode === "insert"} class:connect-crosshair={store.mode === "connect"}>
+  <div class="crosshair" class:hidden={store.mode === "insert"} class:connect-crosshair={store.mode === "connect"} class:visual-crosshair={store.mode === "visual"}>
     <div class="crosshair-h" style="background: {colors.crosshair};"></div>
     <div class="crosshair-v" style="background: {colors.crosshair};"></div>
   </div>
@@ -505,6 +507,19 @@
         {/if}
       {/if}
     </svg>
+
+    <!-- Visual mode selection rectangle -->
+    {#if store.mode === "visual" && store.visualOrigin}
+      {@const center = getCanvasCenter()}
+      {@const rx = Math.min(store.visualOrigin.x, center.x)}
+      {@const ry = Math.min(store.visualOrigin.y, center.y)}
+      {@const rw = Math.abs(center.x - store.visualOrigin.x)}
+      {@const rh = Math.abs(center.y - store.visualOrigin.y)}
+      <div
+        class="visual-rect"
+        style="left: {rx}px; top: {ry}px; width: {rw}px; height: {rh}px;"
+      ></div>
+    {/if}
 
     <!-- Node layer: groups first (behind), then regular nodes on top -->
     {#each store.nodes.filter(n => n.type === "group") as node (node.id)}
@@ -670,6 +685,11 @@
     background: var(--connect-color) !important;
   }
 
+  .crosshair.visual-crosshair .crosshair-h,
+  .crosshair.visual-crosshair .crosshair-v {
+    background: var(--visual-color) !important;
+  }
+
   .crosshair-h,
   .crosshair-v {
     position: absolute;
@@ -772,6 +792,14 @@
     opacity: 0.4;
     font-size: 11px;
     white-space: nowrap;
+  }
+
+  .visual-rect {
+    position: absolute;
+    border: 2px dashed var(--visual-color);
+    background: rgba(255, 158, 100, 0.08);
+    pointer-events: none;
+    z-index: 10;
   }
 
   .edge-label-input {

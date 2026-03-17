@@ -44,6 +44,7 @@ const DEFAULT_CONFIG: Config = {
       connect: "c",
       toggle_select: "v",
       deselect_all: "V",
+      enter_visual: "v",
       color_red: "1",
       color_orange: "2",
       color_yellow: "3",
@@ -60,6 +61,7 @@ const DEFAULT_CONFIG: Config = {
     move: { left: "h", right: "l", up: "k", down: "j", exit: "Escape" },
     resize: { left: "h", right: "l", up: "k", down: "j", exit: "Escape" },
     connect: { left: "h", right: "l", up: "k", down: "j", confirm: "Enter", exit: "Escape" },
+    visual: { left: "h", right: "l", up: "k", down: "j", confirm: "Enter", exit: "Escape" },
     insert: {
       exit: "Escape",
     },

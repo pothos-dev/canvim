@@ -2,7 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 import type { Canvas, CanvasNode, Config, Edge, Side, Viewport } from "./types";
 import { STEP } from "./constants";
 
-export type Mode = "normal" | "insert" | "connect" | "move" | "resize" | "search";
+export type Mode = "normal" | "insert" | "connect" | "move" | "resize" | "search" | "visual";
 
 let nodes = $state<CanvasNode[]>([]);
 let edges = $state<Edge[]>([]);
@@ -23,6 +23,9 @@ let searchQuery = $state("");
 let searchMatchIds = $state<string[]>([]);
 let searchCurrentIndex = $state(0);
 let searchConfirmed = $state(false);
+
+// Visual mode state
+let visualOrigin = $state<{ x: number; y: number } | null>(null);
 
 const MAX_HISTORY = 100;
 let history: Canvas[] = [];
@@ -461,6 +464,37 @@ function confirmSearch() {
   searchConfirmed = true;
 }
 
+// --- Visual mode ---
+
+function enterVisual(originX: number, originY: number) {
+  visualOrigin = { x: originX, y: originY };
+  mode = "visual";
+}
+
+function confirmVisual(currentX: number, currentY: number) {
+  if (!visualOrigin) { mode = "normal"; return; }
+  const minX = Math.min(visualOrigin.x, currentX);
+  const minY = Math.min(visualOrigin.y, currentY);
+  const maxX = Math.max(visualOrigin.x, currentX);
+  const maxY = Math.max(visualOrigin.y, currentY);
+  // Select all nodes that overlap the rectangle
+  const ids: string[] = [];
+  for (const n of nodes) {
+    if (n.x + n.width > minX && n.x < maxX && n.y + n.height > minY && n.y < maxY) {
+      ids.push(n.id);
+    }
+  }
+  selectedNodeIds = ids;
+  selectedEdgeId = null;
+  visualOrigin = null;
+  mode = "normal";
+}
+
+function exitVisual() {
+  visualOrigin = null;
+  mode = "normal";
+}
+
 /** Map canvas spec color preset "1"-"6" to config color values */
 function resolveColor(preset: string | undefined): string | undefined {
   if (!preset || !config) return undefined;
@@ -545,5 +579,10 @@ export function getStore() {
     searchNext,
     searchPrev,
     confirmSearch,
+    // Visual mode
+    get visualOrigin() { return visualOrigin; },
+    enterVisual,
+    confirmVisual,
+    exitVisual,
   };
 }

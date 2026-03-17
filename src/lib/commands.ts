@@ -118,16 +118,14 @@ export const commands: Command[] = [
   { id: "add_node", mode: "normal", label: "add", configKey: "normal.add_node", available: always,
     execute: (ctx) => ctx.addNodeAtCenter() },
 
-  // Select/Edit (Enter)
-  { id: "select", mode: "normal", label: "edit", configKey: "normal.select",
+  // Select (Enter) — selects node/edge without entering insert mode
+  { id: "select", mode: "normal", label: "select", configKey: "normal.select",
     available: (ctx) => noMultiSelect(ctx) && (!!ctx.nodeUnderCursor || !!ctx.edgeUnderCursor),
     execute: (ctx) => {
       if (ctx.nodeUnderCursor) {
         ctx.store.selectNode(ctx.nodeUnderCursor.id);
-        ctx.store.enterInsert();
       } else if (ctx.edgeUnderCursor) {
         ctx.store.selectEdge(ctx.edgeUnderCursor.id);
-        ctx.startEdgeLabelEdit();
       }
     },
   },
@@ -214,11 +212,12 @@ export const commands: Command[] = [
     },
   },
 
-  // Toggle select (v)
-  { id: "toggle_select", mode: "normal", label: "select", configKey: "normal.toggle_select",
-    available: hasNode,
+  // Visual mode (v) — selection rectangle
+  { id: "enter_visual", mode: "normal", label: "visual", configKey: "normal.enter_visual",
+    available: always,
     execute: (ctx) => {
-      if (ctx.nodeUnderCursor) ctx.store.toggleNodeSelection(ctx.nodeUnderCursor.id);
+      const center = ctx.getCanvasCenter();
+      ctx.store.enterVisual(center.x, center.y);
     },
   },
 
@@ -373,6 +372,25 @@ export const commands: Command[] = [
   { id: "search_exit", mode: "search", label: "exit", configKey: "normal.deselect", hidden: true,
     available: always, execute: (ctx) => ctx.store.exitSearch() },
 
+  // === VISUAL MODE ===
+  { id: "visual_left", mode: "visual", label: "move", group: "visual_dir", configKey: "visual.left", available: always, execute: dirExecutor(-1, 0, "pan") },
+  { id: "visual_right", mode: "visual", label: "move", group: "visual_dir", configKey: "visual.right", available: always, execute: dirExecutor(1, 0, "pan") },
+  { id: "visual_up", mode: "visual", label: "move", group: "visual_dir", configKey: "visual.up", available: always, execute: dirExecutor(0, -1, "pan") },
+  { id: "visual_down", mode: "visual", label: "move", group: "visual_dir", configKey: "visual.down", available: always, execute: dirExecutor(0, 1, "pan") },
+  // Arrow aliases
+  { id: "visual_left_arrow", mode: "visual", label: "move", group: "visual_dir", configKey: "visual.left", hidden: true, available: always, execute: dirExecutor(-1, 0, "pan") },
+  { id: "visual_right_arrow", mode: "visual", label: "move", group: "visual_dir", configKey: "visual.right", hidden: true, available: always, execute: dirExecutor(1, 0, "pan") },
+  { id: "visual_up_arrow", mode: "visual", label: "move", group: "visual_dir", configKey: "visual.up", hidden: true, available: always, execute: dirExecutor(0, -1, "pan") },
+  { id: "visual_down_arrow", mode: "visual", label: "move", group: "visual_dir", configKey: "visual.down", hidden: true, available: always, execute: dirExecutor(0, 1, "pan") },
+  { id: "visual_confirm", mode: "visual", label: "select", configKey: "visual.confirm", available: always,
+    execute: (ctx) => {
+      const center = ctx.getCanvasCenter();
+      ctx.store.confirmVisual(center.x, center.y);
+    },
+  },
+  { id: "visual_exit", mode: "visual", label: "cancel", configKey: "visual.exit", available: always,
+    execute: (ctx) => ctx.store.exitVisual() },
+
   // === INSERT MODE ===
   { id: "insert_exit", mode: "insert", label: "exit", configKey: "insert.exit", available: always,
     execute: (ctx) => {
@@ -399,6 +417,10 @@ export function buildKeyMap(config: Config): Map<string, Command[]> {
     "resize_right_arrow": "ArrowRight",
     "resize_up_arrow": "ArrowUp",
     "resize_down_arrow": "ArrowDown",
+    "visual_left_arrow": "ArrowLeft",
+    "visual_right_arrow": "ArrowRight",
+    "visual_up_arrow": "ArrowUp",
+    "visual_down_arrow": "ArrowDown",
     "delete_key": "Delete",
     "zoom_in_eq": "=",
     "yank_ctrlc": "C-c",
@@ -450,8 +472,8 @@ function isAvailableFromSnapshot(cmd: Command, snap: HintSnapshot): boolean {
       return hasNodeOrSelected;
     case "connect":
       return noMulti && snap.hasNode;
-    case "toggle_select":
-      return snap.hasNode;
+    case "enter_visual":
+      return true;
     case "deselect_all":
       return snap.selectedCount > 0;
     case "delete":
