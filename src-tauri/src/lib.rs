@@ -484,14 +484,14 @@ exit = "Escape"
             .expect("Failed to read architecture.canvas");
         let canvas: Canvas = serde_json::from_str(&content)
             .expect("Failed to parse architecture.canvas");
-        assert_eq!(canvas.nodes.len(), 16);
-        assert_eq!(canvas.edges.len(), 12);
+        assert_eq!(canvas.nodes.len(), 19);
+        assert_eq!(canvas.edges.len(), 15);
 
         // Verify round-trip
         let json = serde_json::to_string_pretty(&canvas).unwrap();
         let canvas2: Canvas = serde_json::from_str(&json)
             .expect("Round-trip parse failed");
-        assert_eq!(canvas2.nodes.len(), 16);
-        assert_eq!(canvas2.edges.len(), 12);
+        assert_eq!(canvas2.nodes.len(), 19);
+        assert_eq!(canvas2.edges.len(), 15);
     }
 }

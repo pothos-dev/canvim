@@ -38,7 +38,7 @@
       "width": 400,
       "height": 120,
       "color": "5",
-      "text": "## +page.svelte\nApp entry point. Loads config, reads canvas file from CLI arg, initializes store."
+      "text": "## +page.svelte\nApp entry point. Calls `store.init()` which fetches config + loads canvas file via Tauri IPC."
     },
     {
       "id": "a1b2c3d4e5f60020",
@@ -58,7 +58,7 @@
       "width": 500,
       "height": 260,
       "color": "6",
-      "text": "## Canvas.svelte\nMain canvas renderer + input handler.\n\n**Keyboard:** vim-like (hjkl pan, Shift+hjkl move, Ctrl+hjkl resize)\n**Mouse:** drag-to-move, drag-to-resize, wheel zoom\n**Modes:** Normal → Insert → Connect\n**Renders:** grid background, SVG edge layer, DOM node layer, crosshair, status bar"
+      "text": "## Canvas.svelte\nMain canvas renderer + input handler.\n\n**Keyboard:** command-based dispatch via commands.ts\n**Mouse:** drag-to-move, drag-to-resize, wheel zoom\n**Modes:** Normal, Insert, Connect, Move, Resize\n**Renders:** dot grid, SVG edge layer, DOM node layer, crosshair, status bar"
     },
     {
       "id": "a1b2c3d4e5f60040",
@@ -78,7 +78,7 @@
       "width": 340,
       "height": 100,
       "color": "1",
-      "text": "## Edge.svelte\nSVG cubic bezier curves with arrows and labels. Auto-calculates anchor sides."
+      "text": "## Edge.svelte\nSVG cubic bezier curves with arrows and labels. Uses shared geometry for anchor points and paths."
     },
     {
       "id": "a1b2c3d4e5f60060",
@@ -88,7 +88,7 @@
       "width": 280,
       "height": 140,
       "color": "3",
-      "text": "## types.ts\nTypeScript interfaces matching JSON Canvas spec.\n\nTextNode, FileNode, LinkNode, GroupNode, Edge, Canvas, Config, Viewport"
+      "text": "## types.ts\nTypeScript types matching JSON Canvas spec.\n\nCanvasNode (Text|File|Link|Group), Edge, Canvas, Config, Viewport, Point, Side"
     },
     {
       "id": "a1b2c3d4e5f60065",
@@ -101,13 +101,43 @@
       "text": "## tauri-mock.ts\nBrowser dev mock for Tauri API. Enables testing without desktop runtime."
     },
     {
+      "id": "a1b2c3d4e5f60066",
+      "type": "text",
+      "x": -850,
+      "y": 400,
+      "width": 280,
+      "height": 80,
+      "color": "3",
+      "text": "## constants.ts\nShared constants: STEP, ZOOM_STEP, BORDER_ZONE, EDGE_HIT_THRESHOLD, COLOR_PRESETS"
+    },
+    {
+      "id": "a1b2c3d4e5f60067",
+      "type": "text",
+      "x": -850,
+      "y": 520,
+      "width": 280,
+      "height": 100,
+      "color": "3",
+      "text": "## geometry.ts\nShared geometry functions: attachmentPoint, detectSide, autoSides, pointInNode, bezierPath, distToBezier"
+    },
+    {
+      "id": "a1b2c3d4e5f60068",
+      "type": "text",
+      "x": -400,
+      "y": 320,
+      "width": 400,
+      "height": 120,
+      "color": "6",
+      "text": "## commands.ts\nCommand registry with key dispatch.\n\nDefines all keybindings for all modes. Canvas.svelte builds a keymap and dispatches via CommandContext."
+    },
+    {
       "id": "a1b2c3d4e5f60070",
       "type": "text",
       "x": -200,
-      "y": 420,
+      "y": 500,
       "width": 400,
-      "height": 200,
-      "text": "## Tauri IPC Bridge\n`@tauri-apps/api/core.invoke()`\n\n```\nget_config() → Config\nget_file_path() → Option<String>\nread_canvas(path) → Canvas\nsave_canvas(path, data) → Result\n```"
+      "height": 180,
+      "text": "## Tauri IPC Bridge\n`@tauri-apps/api/core.invoke()`\n\n```\ninit() → { config, file_path }\nread_canvas(path) → Canvas\nsave_canvas(path, data) → Result\n```"
     },
     {
       "id": "a1b2c3d4e5f60080",
@@ -115,9 +145,9 @@
       "x": -500,
       "y": 870,
       "width": 450,
-      "height": 180,
+      "height": 160,
       "color": "2",
-      "text": "## lib.rs (Commands)\nTauri command handlers:\n- `get_file_path` — returns CLI arg\n- `get_config` — parses config.toml\n- `read_canvas` — reads + deserializes JSON\n- `save_canvas` — serializes + writes JSON"
+      "text": "## lib.rs (Commands)\nTauri command handlers:\n- `init` — returns config + CLI file path\n- `read_canvas` — reads + deserializes JSON\n- `save_canvas` — serializes + writes JSON"
     },
     {
       "id": "a1b2c3d4e5f60090",
@@ -127,7 +157,7 @@
       "width": 400,
       "height": 180,
       "color": "2",
-      "text": "## lib.rs (Types)\nRust structs with serde (de)serialization:\n- `Canvas { nodes, edges }`\n- `Node { id, type, x, y, w, h, text, color, ... }`\n- `Edge { id, fromNode, toNode, label, ... }`\n- `Config { colors, ... }`"
+      "text": "## lib.rs (Types)\nRust structs with serde (de)serialization:\n- `Canvas { nodes, edges }`\n- `Node` enum (text|file|link|group)\n- `Edge { id, fromNode, toNode, label, ... }`\n- Config structs via `config_struct!` macro"
     },
     {
       "id": "a1b2c3d4e5f60095",
@@ -135,9 +165,9 @@
       "x": 550,
       "y": 870,
       "width": 300,
-      "height": 140,
+      "height": 100,
       "color": "2",
-      "text": "## main.rs\nEntry point. Daemonization on Linux (prevents duplicate windows). Calls `run()` from lib.rs."
+      "text": "## main.rs\nEntry point. Calls `run()` from lib.rs."
     },
     {
       "id": "a1b2c3d4e5f600a0",
@@ -147,7 +177,7 @@
       "width": 350,
       "height": 100,
       "color": "3",
-      "text": "## ~/.config/canvim/config.toml\nUser configuration: color presets, custom settings."
+      "text": "## ~/.config/canvim/config.toml\nUser configuration: colors, keybindings."
     },
     {
       "id": "a1b2c3d4e5f600b0",
@@ -269,6 +299,33 @@
       "toSide": "right",
       "toEnd": "arrow",
       "label": "calls run()"
+    },
+    {
+      "id": "e1a2b3c4d5e6000d",
+      "fromNode": "a1b2c3d4e5f60068",
+      "fromSide": "right",
+      "toNode": "a1b2c3d4e5f60030",
+      "toSide": "bottom",
+      "toEnd": "arrow",
+      "label": "key dispatch"
+    },
+    {
+      "id": "e1a2b3c4d5e6000e",
+      "fromNode": "a1b2c3d4e5f60067",
+      "fromSide": "right",
+      "toNode": "a1b2c3d4e5f60030",
+      "toSide": "left",
+      "toEnd": "arrow",
+      "label": "geometry"
+    },
+    {
+      "id": "e1a2b3c4d5e6000f",
+      "fromNode": "a1b2c3d4e5f60067",
+      "fromSide": "right",
+      "toNode": "a1b2c3d4e5f60050",
+      "toSide": "bottom",
+      "toEnd": "arrow",
+      "label": "geometry"
     }
   ]
 }
