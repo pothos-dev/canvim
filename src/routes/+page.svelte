@@ -1,6 +1,5 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import { invoke } from "@tauri-apps/api/core";
   import Canvas from "$lib/Canvas.svelte";
   import { getStore } from "$lib/canvas-store.svelte";
 
@@ -16,11 +15,7 @@
         installMock();
       }
 
-      await store.loadConfig();
-      const path = await invoke<string | null>("get_file_path");
-      if (path) {
-        await store.load(path);
-      }
+      await store.init();
       ready = true;
     } catch (e) {
       error = String(e);

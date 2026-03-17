@@ -1,7 +1,6 @@
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
-use std::sync::Mutex;
 use tauri::Manager;
 use tauri_plugin_cli::CliExt;
 
@@ -538,20 +537,29 @@ pub struct Edge {
 // --- App state ---
 
 pub struct AppState {
-    pub file_path: Mutex<Option<String>>,
+    pub file_path: Option<String>,
     pub config: Config,
 }
 
 // --- Commands ---
 
-#[tauri::command]
-fn get_file_path(state: tauri::State<AppState>) -> Option<String> {
-    state.file_path.lock().unwrap().clone()
+#[derive(Debug, Clone, Serialize)]
+pub struct InitData {
+    pub config: Config,
+    pub file_path: Option<String>,
 }
 
 #[tauri::command]
-fn get_config(state: tauri::State<AppState>) -> Config {
-    state.config.clone()
+fn init(state: tauri::State<AppState>) -> InitData {
+    InitData {
+        config: state.config.clone(),
+        file_path: state.file_path.clone(),
+    }
+}
+
+#[tauri::command]
+fn log(message: String) {
+    println!("[webview] {}", message);
 }
 
 #[tauri::command]
@@ -577,40 +585,34 @@ fn save_canvas(path: String, data: Canvas) -> Result<(), String> {
 pub fn run() {
     let config = load_or_create_config();
 
+    // Parse CLI file arg before building app (avoids Mutex for AppState)
+    let file_path = {
+        let args: Vec<String> = std::env::args().collect();
+        if args.len() > 1 && !args[1].starts_with('-') {
+            let path_str = &args[1];
+            let path = if PathBuf::from(path_str).is_absolute() {
+                PathBuf::from(path_str)
+            } else {
+                std::env::current_dir()
+                    .unwrap_or_default()
+                    .join(path_str)
+            };
+            Some(path.to_string_lossy().to_string())
+        } else {
+            None
+        }
+    };
+
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_cli::init())
         .manage(AppState {
-            file_path: Mutex::new(None),
+            file_path,
             config,
         })
-        .setup(|app| {
-            match app.cli().matches() {
-                Ok(matches) => {
-                    if let Some(file_arg) = matches.args.get("file") {
-                        if let Some(path_str) = file_arg.value.as_str() {
-                            if !path_str.is_empty() {
-                                let path = if PathBuf::from(path_str).is_absolute() {
-                                    PathBuf::from(path_str)
-                                } else {
-                                    std::env::current_dir()
-                                        .unwrap_or_default()
-                                        .join(path_str)
-                                };
-                                let state = app.state::<AppState>();
-                                *state.file_path.lock().unwrap() =
-                                    Some(path.to_string_lossy().to_string());
-                            }
-                        }
-                    }
-                }
-                Err(_) => {}
-            }
-            Ok(())
-        })
         .invoke_handler(tauri::generate_handler![
-            get_file_path,
-            get_config,
+            init,
+            log,
             read_canvas,
             save_canvas
         ])
@@ -621,6 +623,44 @@ pub fn run() {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_config_json_serialization() {
+        let config = Config::default();
+        let json = serde_json::to_string_pretty(&config).unwrap();
+        // r#move should serialize as "move"
+        assert!(json.contains("\"move\""), "Config JSON should contain 'move' key: {}", json);
+        assert!(json.contains("\"resize\""), "Config JSON should contain 'resize' key");
+        assert!(json.contains("\"connect\""), "Config JSON should contain 'connect' key");
+        // Should NOT contain modifiers
+        assert!(!json.contains("\"modifiers\""), "Config JSON should not contain 'modifiers'");
+
+        // Verify the full keybindings structure
+        let parsed: serde_json::Value = serde_json::from_str(&json).unwrap();
+        let kb = &parsed["keybindings"];
+        assert!(kb["move"]["left"].is_string(), "move.left should exist");
+        assert!(kb["resize"]["left"].is_string(), "resize.left should exist");
+        assert!(kb["connect"]["confirm"].is_string(), "connect.confirm should exist");
+        assert!(kb["normal"]["enter_move"].is_string(), "normal.enter_move should exist");
+    }
+
+    #[test]
+    fn test_parse_old_config_with_modifiers() {
+        let old_config = r#"
+[keybindings.normal]
+pan_left = "h"
+pan_right = "l"
+
+[keybindings.normal.modifiers]
+move_node = "Shift"
+resize_node = "Ctrl"
+
+[keybindings.insert]
+exit = "Escape"
+"#;
+        let config: Result<Config, _> = toml::from_str(old_config);
+        assert!(config.is_ok(), "Old config with modifiers should parse: {:?}", config.err());
+    }
 
     #[test]
     fn test_parse_architecture_canvas() {

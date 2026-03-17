@@ -39,6 +39,11 @@ const DEFAULT_CONFIG: Config = {
       delete: "d",
       deselect: "Escape",
       quit: "q",
+      enter_move: "m",
+      enter_resize: "r",
+      connect: "c",
+      toggle_select: "v",
+      deselect_all: "V",
       color_red: "1",
       color_orange: "2",
       color_yellow: "3",
@@ -46,11 +51,10 @@ const DEFAULT_CONFIG: Config = {
       color_cyan: "5",
       color_purple: "6",
       color_clear: "0",
-      modifiers: {
-        move_node: "Shift",
-        resize_node: "Ctrl",
-      },
     },
+    move: { left: "h", right: "l", up: "k", down: "j", exit: "Escape" },
+    resize: { left: "h", right: "l", up: "k", down: "j", exit: "Escape" },
+    connect: { left: "h", right: "l", up: "k", down: "j", confirm: "Enter", exit: "Escape" },
     insert: {
       exit: "Escape",
     },
@@ -99,8 +103,8 @@ const TEST_CANVAS: Canvas = {
 };
 
 const MOCK_HANDLERS: Record<string, (...args: unknown[]) => unknown> = {
-  get_config: () => DEFAULT_CONFIG,
-  get_file_path: () => "mock://test.canvas",
+  init: () => ({ config: DEFAULT_CONFIG, file_path: "mock://test.canvas" }),
+  log: (args: any) => console.log("[webview]", args?.message),
   read_canvas: () => TEST_CANVAS,
   save_canvas: () => {},
 };

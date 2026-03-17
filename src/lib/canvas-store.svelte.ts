@@ -39,8 +39,12 @@ async function quit() {
   getCurrentWindow().close();
 }
 
-async function loadConfig() {
-  config = await invoke<Config>("get_config");
+async function init() {
+  const data = await invoke<{ config: Config; file_path: string | null }>("init");
+  config = data.config;
+  if (data.file_path) {
+    await load(data.file_path);
+  }
 }
 
 async function load(path: string) {
@@ -135,7 +139,7 @@ function deselectAll() {
 
 function selectEdge(id: string) {
   selectedEdgeId = id;
-  selectedNodeId = null;
+  selectedNodeIds = [];
 }
 
 function removeEdge(id: string) {
@@ -277,7 +281,7 @@ export function getStore() {
     get connectFromSide() { return connectFromSide; },
     get filePath() { return filePath; },
     get config() { return config; },
-    loadConfig,
+    init,
     load,
     save,
     quit,

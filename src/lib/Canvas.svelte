@@ -5,7 +5,7 @@
   import type { CanvasNode, Edge } from "./types";
   import type { Side } from "./canvas-store.svelte";
   import { getStore } from "./canvas-store.svelte";
-  import { buildKeyMap, getHints, type CommandContext } from "./commands";
+  import { buildKeyMap, getHints, type CommandContext, type HintSnapshot } from "./commands";
 
   const store = getStore();
 
@@ -219,8 +219,13 @@
 
   const hints = $derived.by(() => {
     if (!store.config) return [];
-    const ctx = makeCommandContext();
-    return getHints(store.config, store.mode, ctx);
+    // Use plain snapshot values to avoid reactive proxy reads in available() checks
+    const snap: HintSnapshot = {
+      hasNode: !!nodeUnderCursor,
+      hasEdge: !!edgeUnderCursor,
+      selectedCount: store.selectedNodeIds.length,
+    };
+    return getHints(store.config, store.mode, snap);
   });
 
   function handleKeydown(e: KeyboardEvent) {

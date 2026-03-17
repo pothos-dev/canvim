@@ -333,8 +333,50 @@ export function buildKeyMap(config: Config): Map<string, Command[]> {
   return map;
 }
 
-/** Generate hint strings for the status bar */
-export function getHints(config: Config, mode: Mode, ctx: CommandContext): string[] {
+/** Plain-value snapshot for hint computation — avoids reactive proxy reads */
+export interface HintSnapshot {
+  hasNode: boolean;
+  hasEdge: boolean;
+  selectedCount: number;
+}
+
+/** Check command availability from plain snapshot values (no reactive proxy) */
+function isAvailableFromSnapshot(cmd: Command, snap: HintSnapshot): boolean {
+  const fn = cmd.available;
+  // We can't call available() with full ctx because it reads reactive proxies.
+  // Instead, replicate the logic with plain values.
+  // The available functions only check: nodeUnderCursor, edgeUnderCursor,
+  // selectedNodeIds.length, and hasMultiSelect (selectedNodeIds.length > 1).
+  const hasNodeOrSelected = snap.hasNode || snap.selectedCount > 0;
+  const noMulti = snap.selectedCount <= 1;
+
+  switch (cmd.id) {
+    case "select":
+    case "insert":
+      return noMulti && snap.hasNode;
+    case "enter_move":
+    case "enter_resize":
+      return hasNodeOrSelected;
+    case "connect":
+      return noMulti && snap.hasNode;
+    case "toggle_select":
+      return snap.hasNode;
+    case "deselect_all":
+      return snap.selectedCount > 0;
+    case "delete":
+    case "delete_key":
+      return snap.hasNode || snap.hasEdge || snap.selectedCount > 0;
+    case "color_red": case "color_orange": case "color_yellow":
+    case "color_green": case "color_cyan": case "color_purple":
+    case "color_clear":
+      return snap.hasNode || snap.hasEdge || snap.selectedCount > 0;
+    default:
+      return true; // pan, zoom, add_node, quit, mode exits, etc.
+  }
+}
+
+/** Generate hint strings for the status bar using a plain snapshot */
+export function getHints(config: Config, mode: Mode, snap: HintSnapshot): string[] {
   const seen = new Set<string>();
   const hints: string[] = [];
 
@@ -342,7 +384,7 @@ export function getHints(config: Config, mode: Mode, ctx: CommandContext): strin
     if (cmd.hidden) continue;
     const modes = Array.isArray(cmd.mode) ? cmd.mode : [cmd.mode];
     if (!modes.includes(mode)) continue;
-    if (!cmd.available(ctx)) continue;
+    if (!isAvailableFromSnapshot(cmd, snap)) continue;
 
     const groupKey = cmd.group ?? cmd.id;
     if (seen.has(groupKey)) continue;
