@@ -118,6 +118,8 @@ export interface NormalKeybindings {
   color_cyan: string;
   color_purple: string;
   color_clear: string;
+  undo: string;
+  redo: string;
 }
 
 export interface DirectionalKeybindings {

@@ -75,6 +75,7 @@ function colorCommand(id: string, configKey: string, colorValue: string): Comman
     hidden: true,
     available: (ctx) => !!ctx.nodeUnderCursor || !!ctx.edgeUnderCursor || ctx.store.selectedNodeIds.length > 0,
     execute: (ctx) => {
+      ctx.store.pushSnapshot();
       if (ctx.store.selectedNodeIds.length > 0) {
         for (const nid of ctx.store.selectedNodeIds) {
           ctx.store.setNodeColor(nid, colorValue);
@@ -144,6 +145,7 @@ export const commands: Command[] = [
   { id: "delete", mode: "normal", label: "del", configKey: "normal.delete",
     available: (ctx) => !!ctx.nodeUnderCursor || !!ctx.edgeUnderCursor || ctx.store.selectedNodeIds.length > 0,
     execute: (ctx) => {
+      ctx.store.pushSnapshot();
       if (ctx.store.selectedNodeIds.length > 0) {
         for (const id of [...ctx.store.selectedNodeIds]) {
           ctx.store.removeNode(id);
@@ -228,6 +230,16 @@ export const commands: Command[] = [
   { id: "deselect", mode: "normal", label: "deselect", configKey: "normal.deselect", hidden: true,
     available: always,
     execute: (ctx) => ctx.store.deselectAll(),
+  },
+
+  // Undo / Redo
+  { id: "undo", mode: "normal", label: "undo", configKey: "normal.undo",
+    available: (ctx) => ctx.store.canUndo,
+    execute: (ctx) => ctx.store.undo(),
+  },
+  { id: "redo", mode: "normal", label: "redo", configKey: "normal.redo",
+    available: (ctx) => ctx.store.canRedo,
+    execute: (ctx) => ctx.store.redo(),
   },
 
   // Colors
@@ -333,7 +345,9 @@ export function buildKeyMap(config: Config): Map<string, Command[]> {
 
   for (const cmd of commands) {
     const modes = Array.isArray(cmd.mode) ? cmd.mode : [cmd.mode];
-    const key = arrowAliases[cmd.id] ?? getCommandKey(cmd, config);
+    const rawKey = arrowAliases[cmd.id] ?? getCommandKey(cmd, config);
+    // Support "C-r" style modifier prefixes in config values
+    const key = rawKey.startsWith("C-") ? `C-${rawKey.slice(2)}` : rawKey;
     for (const m of modes) {
       const mapKey = `${m}:${key}`;
       const existing = map.get(mapKey) ?? [];
@@ -381,6 +395,9 @@ function isAvailableFromSnapshot(cmd: Command, snap: HintSnapshot): boolean {
     case "color_green": case "color_cyan": case "color_purple":
     case "color_clear":
       return snap.hasNode || snap.hasEdge || snap.selectedCount > 0;
+    case "undo":
+    case "redo":
+      return true; // Can't check history in snapshot, always show hint
     default:
       return true; // pan, zoom, add_node, quit, mode exits, etc.
   }

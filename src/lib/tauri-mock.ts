@@ -51,6 +51,8 @@ const DEFAULT_CONFIG: Config = {
       color_cyan: "5",
       color_purple: "6",
       color_clear: "0",
+      undo: "u",
+      redo: "C-r",
     },
     move: { left: "h", right: "l", up: "k", down: "j", exit: "Escape" },
     resize: { left: "h", right: "l", up: "k", down: "j", exit: "Escape" },

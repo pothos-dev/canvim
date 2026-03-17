@@ -84,6 +84,8 @@ color_green = "4"
 color_cyan = "5"
 color_purple = "6"
 color_clear = "0"
+undo = "u"
+redo = "C-r"
 
 [keybindings.move]
 left = "h"
@@ -156,6 +158,8 @@ config_struct!(NormalKeybindings {
     color_cyan: String = "5".into(),
     color_purple: String = "6".into(),
     color_clear: String = "0".into(),
+    undo: String = "u".into(),
+    redo: String = "C-r".into(),
 });
 
 config_struct!(MoveKeybindings {

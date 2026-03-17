@@ -150,14 +150,15 @@
   });
 
   function handleKeydown(e: KeyboardEvent) {
-    // Prevent browser zoom on Ctrl+=/Ctrl+-/Ctrl+0
-    if (e.ctrlKey && (e.key === "=" || e.key === "+" || e.key === "-" || e.key === "0")) {
+    // Prevent browser defaults on Ctrl+key combos we handle
+    if (e.ctrlKey && (e.key === "=" || e.key === "+" || e.key === "-" || e.key === "0" || e.key === "r")) {
       e.preventDefault();
     }
 
     if (!store.config) return;
 
-    const mapKey = `${store.mode}:${e.key}`;
+    const prefix = e.ctrlKey ? "C-" : "";
+    const mapKey = `${store.mode}:${prefix}${e.key}`;
     const candidates = commandKeyMap.get(mapKey);
     if (!candidates) return;
 
@@ -247,6 +248,7 @@
     e.stopPropagation();
 
     didDrag = false;
+    store.pushSnapshot();
     const resizeEdge = getResizeEdge(node, canvas.x, canvas.y);
     const type: DragType = resizeEdge ? "resize" : "move";
     dragging = {
@@ -309,7 +311,12 @@
     if (node) {
       const moved = node.x !== dragging.startNodeX || node.y !== dragging.startNodeY ||
                     node.width !== dragging.startNodeW || node.height !== dragging.startNodeH;
-      if (moved) store.save();
+      if (moved) {
+        store.save();
+      } else {
+        // Discard the snapshot pushed in handleMouseDown since nothing changed
+        store.popSnapshot();
+      }
     }
     dragging = null;
     document.body.style.cursor = "";

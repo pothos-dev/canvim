@@ -17,6 +17,53 @@ let filePath = $state<string | null>(null);
 let config = $state<Config | null>(null);
 let saveTimeout: ReturnType<typeof setTimeout> | null = null;
 
+const MAX_HISTORY = 100;
+let history: Canvas[] = [];
+let future: Canvas[] = [];
+
+function cloneState(): Canvas {
+  return JSON.parse(JSON.stringify({ nodes, edges }));
+}
+
+function pushSnapshot() {
+  history.push(cloneState());
+  if (history.length > MAX_HISTORY) history.shift();
+  future.length = 0;
+}
+
+function restoreSnapshot(snapshot: Canvas) {
+  nodes.length = 0;
+  nodes.push(...snapshot.nodes);
+  edges.length = 0;
+  edges.push(...snapshot.edges);
+  // Return to normal mode to avoid stale state
+  mode = "normal";
+  selectedNodeIds = [];
+  selectedEdgeId = null;
+  connectFromNodeId = null;
+  connectFromSide = null;
+  implicitSelect = false;
+  save();
+}
+
+function popSnapshot() {
+  history.pop();
+}
+
+function undo() {
+  if (history.length === 0) return;
+  future.push(cloneState());
+  const snapshot = history.pop()!;
+  restoreSnapshot(snapshot);
+}
+
+function redo() {
+  if (future.length === 0) return;
+  history.push(cloneState());
+  const snapshot = future.pop()!;
+  restoreSnapshot(snapshot);
+}
+
 function generateId(): string {
   return crypto.randomUUID().replace(/-/g, "").slice(0, 16);
 }
@@ -55,6 +102,7 @@ async function load(path: string) {
 }
 
 function addNode(x: number, y: number): string {
+  pushSnapshot();
   const id = generateId();
   const node: CanvasNode = {
     type: "text",
@@ -161,10 +209,14 @@ function setEdgeColor(id: string, color: string) {
 }
 
 function enterInsert() {
-  if (selectedNodeIds.length === 1 || selectedEdgeId) mode = "insert";
+  if (selectedNodeIds.length === 1 || selectedEdgeId) {
+    pushSnapshot();
+    mode = "insert";
+  }
 }
 
 function enterMove(implicit: boolean) {
+  pushSnapshot();
   implicitSelect = implicit;
   mode = "move";
 }
@@ -175,6 +227,7 @@ function exitMove() {
 }
 
 function enterResize(implicit: boolean) {
+  pushSnapshot();
   implicitSelect = implicit;
   mode = "resize";
 }
@@ -241,6 +294,7 @@ function setConnectFromSide(side: Side) {
 }
 
 function addEdge(fromId: string, fromSide: Side, toId: string, toSide: Side) {
+  pushSnapshot();
   const id = generateId();
   const edge: Edge = {
     id,
@@ -316,5 +370,11 @@ export function getStore() {
     panGrid,
     zoom,
     resolveColor,
+    pushSnapshot,
+    popSnapshot,
+    undo,
+    redo,
+    get canUndo() { return history.length > 0; },
+    get canRedo() { return future.length > 0; },
   };
 }
