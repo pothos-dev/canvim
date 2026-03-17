@@ -255,6 +255,8 @@ export const commands: Command[] = [
     execute: (ctx) => ctx.store.exitMove() },
   { id: "move_exit_enter", mode: "move", label: "exit", configKey: "normal.select", hidden: true, available: always,
     execute: (ctx) => ctx.store.exitMove() },
+  { id: "move_to_insert", mode: "move", label: "insert", configKey: "normal.insert", hidden: true, available: always,
+    execute: (ctx) => { ctx.store.exitMove(); ctx.store.enterInsert(); } },
 
   // === RESIZE MODE ===
   { id: "resize_left", mode: "resize", label: "resize", group: "resize_dir", configKey: "resize.left", available: always, execute: dirExecutor(-1, 0, "resize") },
@@ -272,6 +274,8 @@ export const commands: Command[] = [
     execute: (ctx) => ctx.store.exitResize() },
   { id: "resize_exit_enter", mode: "resize", label: "exit", configKey: "normal.select", hidden: true, available: always,
     execute: (ctx) => ctx.store.exitResize() },
+  { id: "resize_to_insert", mode: "resize", label: "insert", configKey: "normal.insert", hidden: true, available: always,
+    execute: (ctx) => { ctx.store.exitResize(); ctx.store.enterInsert(); } },
 
   // === CONNECT MODE ===
   { id: "connect_left", mode: "connect", label: "move", group: "connect_dir", configKey: "connect.left", available: always, execute: dirExecutor(-1, 0, "connect_pan") },
