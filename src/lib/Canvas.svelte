@@ -189,35 +189,6 @@
     return getHints(store.config, store.mode, snap);
   });
 
-  // Manual key repeat — WebKitGTK on Wayland doesn't deliver key repeat events
-  const KEY_REPEAT_DELAY = 300; // ms before repeat starts
-  const KEY_REPEAT_INTERVAL = 50; // ms between repeats
-  let heldKey: string | null = null;
-  let heldModifiers = { ctrl: false, shift: false };
-  let repeatTimeout: ReturnType<typeof setTimeout> | null = null;
-  let repeatInterval: ReturnType<typeof setInterval> | null = null;
-
-  function clearRepeat() {
-    if (repeatTimeout) { clearTimeout(repeatTimeout); repeatTimeout = null; }
-    if (repeatInterval) { clearInterval(repeatInterval); repeatInterval = null; }
-    heldKey = null;
-  }
-
-  function executeKey(key: string, ctrl: boolean, shift: boolean) {
-    if (!store.config) return;
-    const prefix = ctrl ? "C-" : shift && key !== key.toUpperCase() ? "S-" : "";
-    const mapKey = `${store.mode}:${prefix}${key}`;
-    const candidates = commandKeyMap.get(mapKey);
-    if (!candidates) return;
-    const ctx = makeCommandContext();
-    for (const cmd of candidates) {
-      if (cmd.available(ctx)) {
-        cmd.execute(ctx);
-        return;
-      }
-    }
-  }
-
   function handleKeydown(e: KeyboardEvent) {
     // Prevent browser defaults on Ctrl+key combos we handle
     if (e.key === "Tab") {
@@ -238,29 +209,9 @@
     for (const cmd of candidates) {
       if (cmd.available(ctx)) {
         e.preventDefault();
-
-        // Ignore native repeat events — manual timer handles repetition
-        if (e.repeat) break;
-
-        if (heldKey !== e.key) {
-          clearRepeat();
-          cmd.execute(ctx);
-          heldKey = e.key;
-          heldModifiers = { ctrl: e.ctrlKey, shift: e.shiftKey };
-          repeatTimeout = setTimeout(() => {
-            repeatInterval = setInterval(() => {
-              executeKey(heldKey!, heldModifiers.ctrl, heldModifiers.shift);
-            }, KEY_REPEAT_INTERVAL);
-          }, KEY_REPEAT_DELAY);
-        }
+        cmd.execute(ctx);
         return;
       }
-    }
-  }
-
-  function handleKeyup(e: KeyboardEvent) {
-    if (e.key === heldKey) {
-      clearRepeat();
     }
   }
 
@@ -476,18 +427,11 @@
     containerEl?.focus();
     // Must add wheel listener with passive:false to allow preventDefault on pinch-zoom
     containerEl?.addEventListener("wheel", handleWheel, { passive: false });
-    // Clear key repeat state when window loses focus
-    const onBlur = () => clearRepeat();
-    window.addEventListener("blur", onBlur);
-    return () => {
-      containerEl?.removeEventListener("wheel", handleWheel);
-      window.removeEventListener("blur", onBlur);
-      clearRepeat();
-    };
+    return () => containerEl?.removeEventListener("wheel", handleWheel);
   });
 </script>
 
-<svelte:window onkeydown={handleKeydown} onkeyup={handleKeyup} onmousemove={handleMouseMove} onmouseup={handleMouseUp} />
+<svelte:window onkeydown={handleKeydown} onmousemove={handleMouseMove} onmouseup={handleMouseUp} />
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <div
