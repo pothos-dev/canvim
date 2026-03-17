@@ -1,6 +1,7 @@
 <script lang="ts">
   import "highlight.js/styles/github-dark-dimmed.css";
   import { marked } from "./markdown";
+  import MarkdownEditor from "./MarkdownEditor.svelte";
   import type { CanvasNode, ConfigColors } from "./types";
 
   interface Props {
@@ -18,24 +19,17 @@
   }
 
   let { node, editing, selected = false, hovered, connectSource = false, connectTarget = false, onSelect, onUpdate, onExitInsert, colors, resolveColor }: Props = $props();
-  let textareaEl: HTMLTextAreaElement | undefined = $state();
   let editText = $state("");
   let wasEditing = false;
 
   $effect(() => {
     if (editing && !wasEditing) {
-      // Entering edit mode — copy text to local state
       editText = node.type === "text" ? node.text : "";
     }
     if (!editing && wasEditing) {
-      // Exiting edit mode — flush back
       if (node.type === "text") onUpdate(node.id, editText);
     }
     wasEditing = editing;
-  });
-
-  $effect(() => {
-    if (editing && textareaEl) textareaEl.focus();
   });
 
   function getDisplayText(): string {
@@ -82,17 +76,13 @@
   onclick={(e) => { e.stopPropagation(); onSelect(node.id); }}
 >
   {#if editing && node.type === "text"}
-    <textarea
-      bind:this={textareaEl}
-      bind:value={editText}
-      oninput={() => onUpdate(node.id, editText)}
-      onkeydown={(e) => {
-        if (e.key === "Escape") { e.preventDefault(); onExitInsert(); }
-        e.stopPropagation();
-      }}
-      class="node-editor"
-      style="background: {bgColor}; color: {textColor};"
-    ></textarea>
+    <MarkdownEditor
+      value={editText}
+      onInput={(v) => { editText = v; onUpdate(node.id, v); }}
+      onEscape={onExitInsert}
+      bgColor={bgColor}
+      textColor={textColor}
+    />
   {:else}
     <div class="node-content">
       {@html getRenderedHtml()}
@@ -179,17 +169,4 @@
     background: rgba(255, 255, 255, 0.06);
   }
 
-  .node-editor {
-    width: 100%;
-    height: 100%;
-    border: none;
-    outline: none;
-    resize: none;
-    padding: 8px 12px;
-    font-family: inherit;
-    font-size: inherit;
-    line-height: 1.5;
-    box-sizing: border-box;
-    overflow-y: auto;
-  }
 </style>
