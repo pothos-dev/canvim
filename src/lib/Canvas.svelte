@@ -6,6 +6,7 @@
   import { getStore } from "./canvas-store.svelte";
   import { buildKeyMap, getHints, type CommandContext, type HintSnapshot } from "./commands";
   import { STEP, ZOOM_STEP, BORDER_ZONE, EDGE_HIT_THRESHOLD } from "./constants";
+  import { marked } from "./markdown";
   import { pointInNode, attachmentPoint, detectSide, autoSides, distToBezier } from "./geometry";
 
   const store = getStore();
@@ -66,6 +67,44 @@
   function addNodeAtCenter() {
     const center = getCanvasCenter();
     store.addNode(center.x, center.y);
+  }
+
+  function getNodeDisplayText(node: CanvasNode): string {
+    if (node.type === "text") return node.text;
+    if (node.type === "file") return node.file;
+    if (node.type === "link") return node.url;
+    if (node.type === "group") return node.label ?? "Group";
+    return "";
+  }
+
+  function fitNodesToContent() {
+    const ids = store.selectedNodeIds;
+    if (ids.length === 0) return;
+
+    const fontFamily = colors?.node_font ?? "system-ui, sans-serif";
+    const fontSize = colors?.node_font_size ?? 14;
+
+    // Create off-screen measurement div
+    const measure = document.createElement("div");
+    measure.style.cssText = `
+      position: absolute; left: -9999px; top: -9999px;
+      font-family: ${fontFamily}; font-size: ${fontSize}px;
+      line-height: 1.5; padding: 8px 12px;
+      box-sizing: border-box; border: 2px solid transparent;
+    `;
+    document.body.appendChild(measure);
+
+    store.pushSnapshot();
+    for (const id of ids) {
+      const node = store.nodes.find(n => n.id === id);
+      if (!node) continue;
+      measure.style.width = `${node.width}px`;
+      const html = marked.parse(getNodeDisplayText(node), { async: false }) as string;
+      measure.innerHTML = html;
+      const height = Math.ceil(measure.scrollHeight / STEP) * STEP;
+      store.setNodeSize(id, node.width, height);
+    }
+    document.body.removeChild(measure);
   }
 
   function distToEdge(edge: Edge, point: Point): number {
@@ -135,6 +174,7 @@
       hideCursor: () => { if (!mouseCursorHidden) mouseCursorHidden = true; },
       getNodeAtCenter,
       getCanvasCenter,
+      fitNodesToContent,
     };
   }
 

@@ -162,6 +162,13 @@ function resizeNode(id: string, dw: number, dh: number) {
   });
 }
 
+function setNodeSize(id: string, width: number, height: number) {
+  withNode(id, (node) => {
+    node.width = Math.max(50, width);
+    node.height = Math.max(30, height);
+  });
+}
+
 function setNodeColor(id: string, color: string) {
   withNode(id, (node) => { node.color = color; });
 }
@@ -478,6 +485,7 @@ export function getStore() {
     removeNode,
     moveNode,
     resizeNode,
+    setNodeSize,
     setNodeColor,
     selectNode,
     toggleNodeSelection,

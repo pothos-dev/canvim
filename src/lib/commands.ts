@@ -17,6 +17,8 @@ export interface CommandContext {
   getNodeAtCenter: () => CanvasNode | undefined;
   /** Get canvas center point */
   getCanvasCenter: () => Point;
+  /** Fit selected nodes' height to their content */
+  fitNodesToContent: () => void;
 }
 
 export interface Command {
@@ -314,6 +316,8 @@ export const commands: Command[] = [
   { id: "resize_right_arrow", mode: "resize", label: "resize", group: "resize_dir", configKey: "resize.right", hidden: true, available: always, execute: dirExecutor(1, 0, "resize") },
   { id: "resize_up_arrow", mode: "resize", label: "resize", group: "resize_dir", configKey: "resize.up", hidden: true, available: always, execute: dirExecutor(0, -1, "resize") },
   { id: "resize_down_arrow", mode: "resize", label: "resize", group: "resize_dir", configKey: "resize.down", hidden: true, available: always, execute: dirExecutor(0, 1, "resize") },
+  { id: "resize_fit", mode: "resize", label: "fit", configKey: "normal.enter_resize", available: always,
+    execute: (ctx) => { ctx.fitNodesToContent(); ctx.store.exitResize(); } },
   { id: "resize_to_move", mode: "resize", label: "move", configKey: "normal.enter_move", hidden: true, available: always,
     execute: (ctx) => { ctx.store.switchToMove(); } },
   { id: "resize_exit", mode: "resize", label: "exit", configKey: "resize.exit", available: always,
