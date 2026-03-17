@@ -49,6 +49,9 @@
 
   function getNodeAtCenter() {
     const center = getCanvasCenter();
+    // Prefer non-group nodes over group nodes
+    const nonGroup = store.nodes.find((n) => n.type !== "group" && pointInNode(n, center));
+    if (nonGroup) return nonGroup;
     return store.nodes.find((n) => pointInNode(n, center));
   }
 
@@ -296,7 +299,10 @@
 
   function findNodeAt(canvasX: number, canvasY: number): CanvasNode | undefined {
     const p = { x: canvasX, y: canvasY };
-    // Reverse order so topmost (last rendered) is found first
+    // Prefer non-group nodes over group nodes
+    for (let i = store.nodes.length - 1; i >= 0; i--) {
+      if (store.nodes[i].type !== "group" && pointInNode(store.nodes[i], p)) return store.nodes[i];
+    }
     for (let i = store.nodes.length - 1; i >= 0; i--) {
       if (pointInNode(store.nodes[i], p)) return store.nodes[i];
     }
@@ -495,8 +501,23 @@
       {/if}
     </svg>
 
-    <!-- Node layer -->
-    {#each store.nodes as node (node.id)}
+    <!-- Node layer: groups first (behind), then regular nodes on top -->
+    {#each store.nodes.filter(n => n.type === "group") as node (node.id)}
+      <NodeComponent
+        {node}
+        editing={store.selectedNodeId === node.id && store.mode === "insert"}
+        selected={store.selectedNodeIds.includes(node.id)}
+        hovered={nodeUnderCursor?.id === node.id && store.mode === "normal"}
+        connectSource={store.mode === "connect" && store.connectFromNodeId === node.id}
+        connectTarget={store.mode === "connect" && nodeUnderCursor?.id === node.id && node.id !== store.connectFromNodeId}
+        onSelect={handleNodeClick}
+        onUpdate={store.updateNode}
+        onExitInsert={() => store.exitInsert()}
+        colors={colors}
+        resolveColor={store.resolveColor}
+      />
+    {/each}
+    {#each store.nodes.filter(n => n.type !== "group") as node (node.id)}
       <NodeComponent
         {node}
         editing={store.selectedNodeId === node.id && store.mode === "insert"}
