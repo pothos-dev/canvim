@@ -43,6 +43,11 @@ insert = "i"
 delete = "d"
 deselect = "Escape"
 quit = "q"
+enter_move = "m"
+enter_resize = "r"
+connect = "c"
+toggle_select = "v"
+deselect_all = "V"
 color_red = "1"
 color_orange = "2"
 color_yellow = "3"
@@ -51,9 +56,27 @@ color_cyan = "5"
 color_purple = "6"
 color_clear = "0"
 
-[keybindings.normal.modifiers]
-move_node = "Shift"
-resize_node = "Ctrl"
+[keybindings.move]
+left = "h"
+right = "l"
+up = "k"
+down = "j"
+exit = "Escape"
+
+[keybindings.resize]
+left = "h"
+right = "l"
+up = "k"
+down = "j"
+exit = "Escape"
+
+[keybindings.connect]
+left = "h"
+right = "l"
+up = "k"
+down = "j"
+confirm = "Enter"
+exit = "Escape"
 
 [keybindings.insert]
 exit = "Escape"
@@ -152,6 +175,12 @@ pub struct ConfigKeybindings {
     #[serde(default)]
     pub normal: NormalKeybindings,
     #[serde(default)]
+    pub r#move: MoveKeybindings,
+    #[serde(default)]
+    pub resize: ResizeKeybindings,
+    #[serde(default)]
+    pub connect: ConnectKeybindings,
+    #[serde(default)]
     pub insert: InsertKeybindings,
 }
 
@@ -159,6 +188,9 @@ impl Default for ConfigKeybindings {
     fn default() -> Self {
         Self {
             normal: NormalKeybindings::default(),
+            r#move: MoveKeybindings::default(),
+            resize: ResizeKeybindings::default(),
+            connect: ConnectKeybindings::default(),
             insert: InsertKeybindings::default(),
         }
     }
@@ -190,6 +222,16 @@ pub struct NormalKeybindings {
     pub deselect: String,
     #[serde(default = "default_quit")]
     pub quit: String,
+    #[serde(default = "default_enter_move")]
+    pub enter_move: String,
+    #[serde(default = "default_enter_resize")]
+    pub enter_resize: String,
+    #[serde(default = "default_connect")]
+    pub connect: String,
+    #[serde(default = "default_toggle_select")]
+    pub toggle_select: String,
+    #[serde(default = "default_deselect_all")]
+    pub deselect_all: String,
     #[serde(default = "default_color_red")]
     pub color_red: String,
     #[serde(default = "default_color_orange")]
@@ -204,8 +246,6 @@ pub struct NormalKeybindings {
     pub color_purple: String,
     #[serde(default = "default_color_clear")]
     pub color_clear: String,
-    #[serde(default)]
-    pub modifiers: NormalModifiers,
 }
 
 fn default_pan_left() -> String { "h".into() }
@@ -227,6 +267,11 @@ fn default_color_green() -> String { "4".into() }
 fn default_color_cyan() -> String { "5".into() }
 fn default_color_purple() -> String { "6".into() }
 fn default_color_clear() -> String { "0".into() }
+fn default_enter_move() -> String { "m".into() }
+fn default_enter_resize() -> String { "r".into() }
+fn default_connect() -> String { "c".into() }
+fn default_toggle_select() -> String { "v".into() }
+fn default_deselect_all() -> String { "V".into() }
 
 impl Default for NormalKeybindings {
     fn default() -> Self {
@@ -243,6 +288,11 @@ impl Default for NormalKeybindings {
             delete: default_delete(),
             deselect: default_deselect(),
             quit: default_quit(),
+            enter_move: default_enter_move(),
+            enter_resize: default_enter_resize(),
+            connect: default_connect(),
+            toggle_select: default_toggle_select(),
+            deselect_all: default_deselect_all(),
             color_red: default_color_red(),
             color_orange: default_color_orange(),
             color_yellow: default_color_yellow(),
@@ -250,43 +300,108 @@ impl Default for NormalKeybindings {
             color_cyan: default_color_cyan(),
             color_purple: default_color_purple(),
             color_clear: default_color_clear(),
-            modifiers: NormalModifiers::default(),
+        }
+    }
+}
+
+fn default_dir_left() -> String { "h".into() }
+fn default_dir_right() -> String { "l".into() }
+fn default_dir_up() -> String { "k".into() }
+fn default_dir_down() -> String { "j".into() }
+fn default_exit() -> String { "Escape".into() }
+fn default_confirm() -> String { "Enter".into() }
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MoveKeybindings {
+    #[serde(default = "default_dir_left")]
+    pub left: String,
+    #[serde(default = "default_dir_right")]
+    pub right: String,
+    #[serde(default = "default_dir_up")]
+    pub up: String,
+    #[serde(default = "default_dir_down")]
+    pub down: String,
+    #[serde(default = "default_exit")]
+    pub exit: String,
+}
+
+impl Default for MoveKeybindings {
+    fn default() -> Self {
+        Self {
+            left: default_dir_left(),
+            right: default_dir_right(),
+            up: default_dir_up(),
+            down: default_dir_down(),
+            exit: default_exit(),
         }
     }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct NormalModifiers {
-    #[serde(default = "default_move_mod")]
-    pub move_node: String,
-    #[serde(default = "default_resize_mod")]
-    pub resize_node: String,
+pub struct ResizeKeybindings {
+    #[serde(default = "default_dir_left")]
+    pub left: String,
+    #[serde(default = "default_dir_right")]
+    pub right: String,
+    #[serde(default = "default_dir_up")]
+    pub up: String,
+    #[serde(default = "default_dir_down")]
+    pub down: String,
+    #[serde(default = "default_exit")]
+    pub exit: String,
 }
 
-fn default_move_mod() -> String { "Shift".into() }
-fn default_resize_mod() -> String { "Ctrl".into() }
-
-impl Default for NormalModifiers {
+impl Default for ResizeKeybindings {
     fn default() -> Self {
         Self {
-            move_node: default_move_mod(),
-            resize_node: default_resize_mod(),
+            left: default_dir_left(),
+            right: default_dir_right(),
+            up: default_dir_up(),
+            down: default_dir_down(),
+            exit: default_exit(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ConnectKeybindings {
+    #[serde(default = "default_dir_left")]
+    pub left: String,
+    #[serde(default = "default_dir_right")]
+    pub right: String,
+    #[serde(default = "default_dir_up")]
+    pub up: String,
+    #[serde(default = "default_dir_down")]
+    pub down: String,
+    #[serde(default = "default_confirm")]
+    pub confirm: String,
+    #[serde(default = "default_exit")]
+    pub exit: String,
+}
+
+impl Default for ConnectKeybindings {
+    fn default() -> Self {
+        Self {
+            left: default_dir_left(),
+            right: default_dir_right(),
+            up: default_dir_up(),
+            down: default_dir_down(),
+            confirm: default_confirm(),
+            exit: default_exit(),
         }
     }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct InsertKeybindings {
-    #[serde(default = "default_insert_exit")]
+    #[serde(default = "default_exit")]
     pub exit: String,
 }
-
-fn default_insert_exit() -> String { "Escape".into() }
 
 impl Default for InsertKeybindings {
     fn default() -> Self {
         Self {
-            exit: default_insert_exit(),
+            exit: default_exit(),
         }
     }
 }
@@ -501,4 +616,26 @@ pub fn run() {
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_parse_architecture_canvas() {
+        let content = std::fs::read_to_string("../architecture.canvas")
+            .expect("Failed to read architecture.canvas");
+        let canvas: Canvas = serde_json::from_str(&content)
+            .expect("Failed to parse architecture.canvas");
+        assert_eq!(canvas.nodes.len(), 16);
+        assert_eq!(canvas.edges.len(), 12);
+
+        // Verify round-trip
+        let json = serde_json::to_string_pretty(&canvas).unwrap();
+        let canvas2: Canvas = serde_json::from_str(&json)
+            .expect("Round-trip parse failed");
+        assert_eq!(canvas2.nodes.len(), 16);
+        assert_eq!(canvas2.edges.len(), 12);
+    }
 }

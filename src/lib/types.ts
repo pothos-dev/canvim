@@ -90,11 +90,6 @@ export interface ConfigColors {
   purple: string;
 }
 
-export interface NormalModifiers {
-  move_node: string;
-  resize_node: string;
-}
-
 export interface NormalKeybindings {
   pan_left: string;
   pan_right: string;
@@ -108,6 +103,11 @@ export interface NormalKeybindings {
   delete: string;
   deselect: string;
   quit: string;
+  enter_move: string;
+  enter_resize: string;
+  connect: string;
+  toggle_select: string;
+  deselect_all: string;
   color_red: string;
   color_orange: string;
   color_yellow: string;
@@ -115,7 +115,18 @@ export interface NormalKeybindings {
   color_cyan: string;
   color_purple: string;
   color_clear: string;
-  modifiers: NormalModifiers;
+}
+
+export interface DirectionalKeybindings {
+  left: string;
+  right: string;
+  up: string;
+  down: string;
+  exit: string;
+}
+
+export interface ConnectKeybindings extends DirectionalKeybindings {
+  confirm: string;
 }
 
 export interface InsertKeybindings {
@@ -124,6 +135,9 @@ export interface InsertKeybindings {
 
 export interface ConfigKeybindings {
   normal: NormalKeybindings;
+  move: DirectionalKeybindings;
+  resize: DirectionalKeybindings;
+  connect: ConnectKeybindings;
   insert: InsertKeybindings;
 }
 

@@ -1,13 +1,13 @@
 import { invoke } from "@tauri-apps/api/core";
 import type { Canvas, CanvasNode, Config, Edge, Viewport } from "./types";
 
-export type Mode = "normal" | "insert" | "connect";
+export type Mode = "normal" | "insert" | "connect" | "move" | "resize";
 export type Side = "top" | "right" | "bottom" | "left";
 
 let nodes = $state<CanvasNode[]>([]);
 let edges = $state<Edge[]>([]);
 let viewport = $state<Viewport>({ x: 0, y: 0, zoom: 1 });
-let selectedNodeId = $state<string | null>(null);
+let selectedNodeIds = $state<string[]>([]);
 let selectedEdgeId = $state<string | null>(null);
 let mode = $state<Mode>("normal");
 let connectFromNodeId = $state<string | null>(null);
@@ -62,7 +62,7 @@ function addNode(x: number, y: number): string {
     text: "",
   };
   nodes.push(node);
-  selectedNodeId = id;
+  selectedNodeIds = [id];
   mode = "insert";
   debouncedSave();
   return id;
@@ -83,7 +83,7 @@ function removeNode(id: string) {
   const remainingEdges = edges.filter(e => e.fromNode !== id && e.toNode !== id);
   edges.length = 0;
   edges.push(...remainingEdges);
-  if (selectedNodeId === id) selectedNodeId = null;
+  selectedNodeIds = selectedNodeIds.filter(nid => nid !== id);
   debouncedSave();
 }
 
@@ -114,7 +114,22 @@ function setNodeColor(id: string, color: string) {
 }
 
 function selectNode(id: string) {
-  selectedNodeId = id;
+  selectedNodeIds = [id];
+  selectedEdgeId = null;
+}
+
+function toggleNodeSelection(id: string) {
+  const idx = selectedNodeIds.indexOf(id);
+  if (idx >= 0) {
+    selectedNodeIds = selectedNodeIds.filter(nid => nid !== id);
+  } else {
+    selectedNodeIds = [...selectedNodeIds, id];
+  }
+  selectedEdgeId = null;
+}
+
+function deselectAll() {
+  selectedNodeIds = [];
   selectedEdgeId = null;
 }
 
@@ -148,7 +163,23 @@ function setEdgeColor(id: string, color: string) {
 }
 
 function enterInsert() {
-  if (selectedNodeId || selectedEdgeId) mode = "insert";
+  if (selectedNodeIds.length === 1 || selectedEdgeId) mode = "insert";
+}
+
+function enterMove() {
+  mode = "move";
+}
+
+function exitMove() {
+  mode = "normal";
+}
+
+function enterResize() {
+  mode = "resize";
+}
+
+function exitResize() {
+  mode = "normal";
 }
 
 function exitInsert() {
@@ -156,7 +187,7 @@ function exitInsert() {
 }
 
 function deselect() {
-  selectedNodeId = null;
+  selectedNodeIds = [];
   selectedEdgeId = null;
 }
 
@@ -237,7 +268,9 @@ export function getStore() {
     get nodes() { return nodes; },
     get edges() { return edges; },
     get viewport() { return viewport; },
-    get selectedNodeId() { return selectedNodeId; },
+    get selectedNodeId() { return selectedNodeIds.length === 1 ? selectedNodeIds[0] : null; },
+    get selectedNodeIds() { return selectedNodeIds; },
+    get hasMultiSelect() { return selectedNodeIds.length > 1; },
     get selectedEdgeId() { return selectedEdgeId; },
     get mode() { return mode; },
     get connectFromNodeId() { return connectFromNodeId; },
@@ -255,12 +288,18 @@ export function getStore() {
     resizeNode,
     setNodeColor,
     selectNode,
+    toggleNodeSelection,
+    deselectAll,
     selectEdge,
     removeEdge,
     updateEdgeLabel,
     setEdgeColor,
     enterInsert,
     exitInsert,
+    enterMove,
+    exitMove,
+    enterResize,
+    exitResize,
     enterConnect,
     exitConnect,
     setConnectFromSide,

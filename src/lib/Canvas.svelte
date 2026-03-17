@@ -5,6 +5,7 @@
   import type { CanvasNode, Edge } from "./types";
   import type { Side } from "./canvas-store.svelte";
   import { getStore } from "./canvas-store.svelte";
+  import { buildKeyMap, getHints, type CommandContext } from "./commands";
 
   const store = getStore();
 
@@ -22,9 +23,6 @@
            p.y >= node.y && p.y <= node.y + node.height;
   }
 
-  // Locks focus to a node during Shift+hjkl move/resize so overlapping nodes don't steal focus
-  let focusedNodeId = $state<string | null>(null);
-
   let dragging = $state<{
     type: DragType;
     nodeId: string;
@@ -39,160 +37,8 @@
   let didDrag = false; // true if a drag actually moved/resized
   let mouseCursorHidden = $state(false);
 
-  function dirFromKey(key: string): [number, number] | null {
-    if (!store.config) return null;
-    const kb = store.config.keybindings.normal;
-    if (key === kb.pan_left || key === "ArrowLeft") return [-1, 0];
-    if (key === kb.pan_right || key === "ArrowRight") return [1, 0];
-    if (key === kb.pan_up || key === "ArrowUp") return [0, -1];
-    if (key === kb.pan_down || key === "ArrowDown") return [0, 1];
-    return null;
-  }
-
-  function modifierActive(e: KeyboardEvent, mod: string): boolean {
-    switch (mod) {
-      case "Shift": return e.shiftKey;
-      case "Ctrl": return e.ctrlKey;
-      case "Alt": return e.altKey;
-      case "Meta": return e.metaKey;
-      default: return false;
-    }
-  }
-
-  function handleKeydown(e: KeyboardEvent) {
-    // Prevent browser zoom on Ctrl+=/Ctrl+-/Ctrl+0
-    if (e.ctrlKey && (e.key === "=" || e.key === "+" || e.key === "-" || e.key === "0")) {
-      e.preventDefault();
-    }
-
-    if (!store.config) return;
-    const kb = store.config.keybindings;
-
-    if (store.mode === "insert") {
-      if (e.key === kb.insert.exit) {
-        e.preventDefault();
-        if (editingEdgeLabel) finishEdgeLabelEdit();
-        else store.exitInsert();
-      }
-      return;
-    }
-
-    if (store.mode === "connect") {
-      e.preventDefault();
-      if (e.key === "Escape") {
-        store.exitConnect();
-        return;
-      }
-      const cdir = dirFromKey(e.key);
-      if (cdir) {
-        if (!mouseCursorHidden) mouseCursorHidden = true;
-        store.panGrid(-cdir[0], -cdir[1]);
-        return;
-      }
-      if (e.key === "Enter") {
-        const target = getNodeAtCenter();
-        if (!target || target.id === store.connectFromNodeId) {
-          // No valid target or self-edge — cancel
-          if (!target) store.exitConnect();
-          return;
-        }
-        const fromNode = store.nodes.find(n => n.id === store.connectFromNodeId);
-        if (!fromNode) { store.exitConnect(); return; }
-        const fromSide = store.connectFromSide ?? sideBetweenNodes(fromNode, target);
-        const center = getCanvasCenter();
-        const toSide = detectSide(target, center);
-        store.addEdge(fromNode.id, fromSide, target.id, toSide);
-        store.exitConnect();
-        return;
-      }
-      return; // swallow all other keys
-    }
-
-    const mods = kb.normal.modifiers;
-    const dir = dirFromKey(e.key);
-    // Use focusedNodeId during Shift/Ctrl+hjkl to prevent focus from jumping to overlapping nodes
-    const focusedNode = focusedNodeId ? store.nodes.find(n => n.id === focusedNodeId) : null;
-    const targetNode = focusedNode ?? nodeUnderCursor;
-
-    if (dir && targetNode) {
-      if (modifierActive(e, mods.resize_node)) {
-        e.preventDefault();
-        focusedNodeId = targetNode.id;
-        store.resizeNode(targetNode.id, dir[0] * STEP, dir[1] * STEP);
-        return;
-      }
-      if (modifierActive(e, mods.move_node)) {
-        e.preventDefault();
-        focusedNodeId = targetNode.id;
-        store.moveNode(targetNode.id, dir[0] * STEP, dir[1] * STEP);
-        store.panGrid(-dir[0], -dir[1]);
-        return;
-      }
-    }
-
-    // Clear focus lock on plain navigation or any non-modifier key
-    focusedNodeId = null;
-
-    if (dir) {
-      if (!mouseCursorHidden) mouseCursorHidden = true;
-      store.panGrid(-dir[0], -dir[1]);
-      return;
-    }
-
-    const nk = kb.normal;
-    switch (e.key) {
-      case nk.zoom_in:
-      case "=":
-        store.zoom(ZOOM_STEP);
-        break;
-      case nk.zoom_out:
-        store.zoom(-ZOOM_STEP);
-        break;
-      case nk.add_node:
-        e.preventDefault();
-        addNodeAtCenter();
-        break;
-      case nk.select: {
-        e.preventDefault();
-        if (targetNode) {
-          store.selectNode(targetNode.id);
-          store.enterInsert();
-        } else if (edgeUnderCursor) {
-          store.selectEdge(edgeUnderCursor.id);
-          startEdgeLabelEdit();
-        }
-        break;
-      }
-      case nk.delete:
-      case "Delete": {
-        const edgeTarget = edgeUnderCursor ?? (store.selectedEdgeId ? store.edges.find(e => e.id === store.selectedEdgeId) : undefined);
-        if (targetNode) {
-          store.removeNode(targetNode.id);
-        } else if (edgeTarget) {
-          store.removeEdge(edgeTarget.id);
-        }
-        break;
-      }
-      case nk.quit:
-        store.quit();
-        break;
-      case "c":
-        if (targetNode) store.enterConnect(targetNode.id);
-        break;
-      default: {
-        const colorKeys: Record<string, string> = {
-          [nk.color_red]: "1", [nk.color_orange]: "2", [nk.color_yellow]: "3",
-          [nk.color_green]: "4", [nk.color_cyan]: "5", [nk.color_purple]: "6",
-          [nk.color_clear]: "",
-        };
-        const color = colorKeys[e.key];
-        if (color !== undefined) {
-          if (targetNode) store.setNodeColor(targetNode.id, color);
-          else if (edgeUnderCursor) store.setEdgeColor(edgeUnderCursor.id, color);
-        }
-      }
-    }
-  }
+  // Command system
+  const commandKeyMap = $derived(store.config ? buildKeyMap(store.config) : new Map());
 
   function getCanvasCenter(): Point {
     return {
@@ -231,7 +77,7 @@
   }
 
   // Track when cursor leaves fromNode to detect fromSide
-  let wasInsideFromNode = $state(false);
+  let wasInsideFromNode = false;
 
   $effect(() => {
     if (store.mode !== "connect" || !store.connectFromNodeId) {
@@ -350,6 +196,55 @@
     store.exitInsert();
   }
 
+  const nodeUnderCursor = $derived(getNodeAtCenter());
+  const edgeUnderCursor = $derived(nodeUnderCursor ? undefined : getEdgeAtCenter());
+
+  function makeCommandContext(): CommandContext {
+    return {
+      store,
+      config: store.config!,
+      nodeUnderCursor,
+      edgeUnderCursor,
+      addNodeAtCenter,
+      startEdgeLabelEdit,
+      finishEdgeLabelEdit,
+      editingEdgeLabel,
+      hideCursor: () => { if (!mouseCursorHidden) mouseCursorHidden = true; },
+      getNodeAtCenter,
+      sideBetweenNodes,
+      detectSide,
+      getCanvasCenter,
+    };
+  }
+
+  const hints = $derived.by(() => {
+    if (!store.config) return [];
+    const ctx = makeCommandContext();
+    return getHints(store.config, store.mode, ctx);
+  });
+
+  function handleKeydown(e: KeyboardEvent) {
+    // Prevent browser zoom on Ctrl+=/Ctrl+-/Ctrl+0
+    if (e.ctrlKey && (e.key === "=" || e.key === "+" || e.key === "-" || e.key === "0")) {
+      e.preventDefault();
+    }
+
+    if (!store.config) return;
+
+    const mapKey = `${store.mode}:${e.key}`;
+    const candidates = commandKeyMap.get(mapKey);
+    if (!candidates) return;
+
+    const ctx = makeCommandContext();
+    for (const cmd of candidates) {
+      if (cmd.available(ctx)) {
+        e.preventDefault();
+        cmd.execute(ctx);
+        return;
+      }
+    }
+  }
+
   function handleEdgeClick(id: string) {
     store.selectEdge(id);
   }
@@ -412,7 +307,7 @@
   }
 
   function handleMouseDown(e: MouseEvent) {
-    if (store.mode === "insert" || store.mode === "connect") return;
+    if (store.mode === "insert" || store.mode === "connect" || store.mode === "move" || store.mode === "resize") return;
     if (e.button !== 0) return;
 
     const canvas = screenToCanvas(e.clientX, e.clientY);
@@ -508,15 +403,15 @@
     store.deselect();
   }
 
-  const modeLabel = $derived(
-    store.mode === "normal" ? "NORMAL" : store.mode === "insert" ? "INSERT" : "CONNECT"
-  );
-  const modeColor = $derived(
-    store.mode === "normal" ? "#7aa2f7" : store.mode === "insert" ? "#9ece6a" : "#f7768e"
-  );
+  const MODE_LABELS: Record<string, string> = {
+    normal: "NORMAL", insert: "INSERT", connect: "CONNECT", move: "MOVE", resize: "RESIZE",
+  };
+  const MODE_COLORS: Record<string, string> = {
+    normal: "#7aa2f7", insert: "#9ece6a", connect: "#f7768e", move: "#e0de71", resize: "#e9973f",
+  };
+  const modeLabel = $derived(MODE_LABELS[store.mode] ?? "NORMAL");
+  const modeColor = $derived(MODE_COLORS[store.mode] ?? "#7aa2f7");
   const colors = $derived(store.config?.colors);
-  const nodeUnderCursor = $derived(getNodeAtCenter());
-  const edgeUnderCursor = $derived(nodeUnderCursor ? undefined : getEdgeAtCenter());
 
   let containerEl: HTMLDivElement | undefined = $state();
 
@@ -600,7 +495,8 @@
       <NodeComponent
         {node}
         editing={store.selectedNodeId === node.id && store.mode === "insert"}
-        hovered={nodeUnderCursor?.id === node.id && store.mode === "normal" && !focusedNodeId}
+        selected={store.selectedNodeIds.includes(node.id)}
+        hovered={nodeUnderCursor?.id === node.id && store.mode === "normal"}
         connectSource={store.mode === "connect" && store.connectFromNodeId === node.id}
         connectTarget={store.mode === "connect" && nodeUnderCursor?.id === node.id && node.id !== store.connectFromNodeId}
         onSelect={handleNodeClick}
@@ -644,16 +540,8 @@
     </span>
     <span>{Math.round(store.viewport.zoom * 100)}%</span>
     <span>{store.nodes.length} nodes</span>
-    {#if store.mode === "insert"}
-      <span class="hint">Esc:exit</span>
-    {:else if store.mode === "connect"}
-      <span class="hint">hjkl:move Enter:connect Esc:cancel</span>
-    {:else if nodeUnderCursor}
-      <span class="hint">hjkl:pan Shift:move Ctrl:resize Enter:edit c:connect d/Del:del 1-6:color</span>
-    {:else if edgeUnderCursor}
-      <span class="hint">hjkl:pan Enter:label d/Del:del 1-6:color</span>
-    {:else}
-      <span class="hint">hjkl:pan a:add +/-:zoom q:quit</span>
+    {#if hints.length > 0}
+      <span class="hint">{hints.join(" ")}</span>
     {/if}
     {#if store.filePath}
       <span class="filepath">{store.filePath}</span>

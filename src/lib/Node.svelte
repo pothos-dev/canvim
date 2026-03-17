@@ -43,6 +43,7 @@
   interface Props {
     node: CanvasNode;
     editing: boolean;
+    selected?: boolean;
     hovered: boolean;
     connectSource?: boolean;
     connectTarget?: boolean;
@@ -53,7 +54,7 @@
     resolveColor: (preset: string | undefined) => string | undefined;
   }
 
-  let { node, editing, hovered, connectSource = false, connectTarget = false, onSelect, onUpdate, onExitInsert, colors, resolveColor }: Props = $props();
+  let { node, editing, selected = false, hovered, connectSource = false, connectTarget = false, onSelect, onUpdate, onExitInsert, colors, resolveColor }: Props = $props();
   let textareaEl: HTMLTextAreaElement | undefined = $state();
   let editText = $state("");
   let wasEditing = false;
@@ -99,6 +100,7 @@
 <div
   class="node"
   class:editing
+  class:selected
   class:hovered
   class:connect-source={connectSource}
   class:connect-target={connectTarget}
@@ -145,6 +147,11 @@
     box-sizing: border-box;
     opacity: 0.7;
     transition: opacity 0.15s ease, box-shadow 0.2s ease;
+  }
+
+  .node.selected {
+    opacity: 0.9;
+    box-shadow: 0 0 0 2px #7aa2f7, 0 4px 16px rgba(122, 162, 247, 0.2);
   }
 
   .node.hovered {
