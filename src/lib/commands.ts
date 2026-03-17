@@ -351,6 +351,14 @@ export const commands: Command[] = [
   { id: "connect_exit", mode: "connect", label: "cancel", configKey: "connect.exit", available: always,
     execute: (ctx) => ctx.store.exitConnect() },
 
+  // Cycle nodes
+  { id: "cycle_next", mode: "normal", label: "next node", configKey: "normal.pan_down", hidden: true,
+    available: (ctx) => ctx.store.nodes.length > 0,
+    execute: (ctx) => ctx.store.cycleNode(1) },
+  { id: "cycle_prev", mode: "normal", label: "prev node", configKey: "normal.pan_up", hidden: true,
+    available: (ctx) => ctx.store.nodes.length > 0,
+    execute: (ctx) => ctx.store.cycleNode(-1) },
+
   // Search
   { id: "search", mode: "normal", label: "search", configKey: "normal.search", available: always,
     execute: (ctx) => ctx.store.enterSearch() },
@@ -398,13 +406,14 @@ export function buildKeyMap(config: Config): Map<string, Command[]> {
     "search_ctrlf": "C-f",
     "search_next": "n",
     "search_prev": "N",
+    "cycle_next": "Tab",
+    "cycle_prev": "S-Tab",
   };
 
   for (const cmd of commands) {
     const modes = Array.isArray(cmd.mode) ? cmd.mode : [cmd.mode];
     const rawKey = arrowAliases[cmd.id] ?? getCommandKey(cmd, config);
-    // Support "C-r" style modifier prefixes in config values
-    const key = rawKey.startsWith("C-") ? `C-${rawKey.slice(2)}` : rawKey;
+    const key = rawKey;
     for (const m of modes) {
       const mapKey = `${m}:${key}`;
       const existing = map.get(mapKey) ?? [];

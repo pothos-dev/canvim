@@ -15,6 +15,6 @@
 - [ ] Repeat/count prefix — Vim's 5j to move 5 steps. Would make move/resize much faster.
 - [ ] Visual feedback on save — No indicator that a save happened (or failed).
 - [ ] Node alignment/snapping to neighbors — Smart guides or align commands for lining up nodes.
-- [ ] Tab to cycle between nodes — No way to jump between nodes without panning.
+- [x] Tab to cycle between nodes — No way to jump between nodes without panning.
 - [ ] Open links/files — Link and file nodes exist in the spec but can't be opened/followed.
 - [ ] Mouse-free connect refinement — Connect mode auto-detects sides, but no way to force a specific side.

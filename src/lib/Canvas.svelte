@@ -191,13 +191,16 @@
 
   function handleKeydown(e: KeyboardEvent) {
     // Prevent browser defaults on Ctrl+key combos we handle
+    if (e.key === "Tab") {
+      e.preventDefault();
+    }
     if (e.ctrlKey && (e.key === "=" || e.key === "+" || e.key === "-" || e.key === "0" || e.key === "r" || e.key === "c" || e.key === "v" || e.key === "f")) {
       e.preventDefault();
     }
 
     if (!store.config) return;
 
-    const prefix = e.ctrlKey ? "C-" : "";
+    const prefix = e.ctrlKey ? "C-" : e.shiftKey && e.key !== e.key.toUpperCase() ? "S-" : "";
     const mapKey = `${store.mode}:${prefix}${e.key}`;
     const candidates = commandKeyMap.get(mapKey);
     if (!candidates) return;

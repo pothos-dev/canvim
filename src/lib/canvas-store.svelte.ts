@@ -178,6 +178,19 @@ function selectNode(id: string) {
   selectedEdgeId = null;
 }
 
+let cycleIndex = $state(-1);
+
+function cycleNode(direction: 1 | -1) {
+  if (nodes.length === 0) return;
+  if (cycleIndex === -1) {
+    cycleIndex = direction === 1 ? 0 : nodes.length - 1;
+  } else {
+    cycleIndex = (cycleIndex + direction + nodes.length) % nodes.length;
+  }
+  const node = nodes[cycleIndex];
+  centerOnNode(node);
+}
+
 function toggleNodeSelection(id: string) {
   const idx = selectedNodeIds.indexOf(id);
   if (idx >= 0) {
@@ -488,6 +501,7 @@ export function getStore() {
     setNodeSize,
     setNodeColor,
     selectNode,
+    cycleNode,
     toggleNodeSelection,
     deselectAll,
     selectEdge,
