@@ -2,7 +2,7 @@
   import { onMount } from "svelte";
   import NodeComponent from "./Node.svelte";
   import EdgeComponent from "./Edge.svelte";
-  import type { CanvasNode } from "./types";
+  import type { CanvasNode, Edge } from "./types";
   import type { Side } from "./canvas-store.svelte";
   import { getStore } from "./canvas-store.svelte";
 
@@ -69,7 +69,11 @@
     const kb = store.config.keybindings;
 
     if (store.mode === "insert") {
-      if (e.key === kb.insert.exit) { e.preventDefault(); store.exitInsert(); }
+      if (e.key === kb.insert.exit) {
+        e.preventDefault();
+        if (editingEdgeLabel) finishEdgeLabelEdit();
+        else store.exitInsert();
+      }
       return;
     }
 
@@ -153,13 +157,22 @@
         if (targetNode) {
           store.selectNode(targetNode.id);
           store.enterInsert();
+        } else if (edgeUnderCursor) {
+          store.selectEdge(edgeUnderCursor.id);
+          startEdgeLabelEdit();
         }
         break;
       }
       case nk.delete:
-      case "Delete":
-        if (targetNode) store.removeNode(targetNode.id);
+      case "Delete": {
+        const edgeTarget = edgeUnderCursor ?? (store.selectedEdgeId ? store.edges.find(e => e.id === store.selectedEdgeId) : undefined);
+        if (targetNode) {
+          store.removeNode(targetNode.id);
+        } else if (edgeTarget) {
+          store.removeEdge(edgeTarget.id);
+        }
         break;
+      }
       case nk.quit:
         store.quit();
         break;
@@ -236,6 +249,107 @@
   function addNodeAtCenter() {
     const center = getCanvasCenter();
     store.addNode(center.x, center.y);
+  }
+
+  // --- Edge proximity detection for crosshair ---
+  const EDGE_HIT_THRESHOLD = 12; // canvas-space pixels
+
+  type BezierSide = "top" | "bottom" | "left" | "right";
+  const edgeSideNormals: Record<BezierSide, Point> = {
+    top: { x: 0, y: -1 }, bottom: { x: 0, y: 1 },
+    left: { x: -1, y: 0 }, right: { x: 1, y: 0 },
+  };
+
+  function edgeAutoSide(fromNode: CanvasNode, toNode: CanvasNode): { fromSide: BezierSide; toSide: BezierSide } {
+    const dx = (toNode.x + toNode.width / 2) - (fromNode.x + fromNode.width / 2);
+    const dy = (toNode.y + toNode.height / 2) - (fromNode.y + fromNode.height / 2);
+    if (Math.abs(dx) >= Math.abs(dy)) {
+      return dx >= 0 ? { fromSide: "right", toSide: "left" } : { fromSide: "left", toSide: "right" };
+    }
+    return dy >= 0 ? { fromSide: "bottom", toSide: "top" } : { fromSide: "top", toSide: "bottom" };
+  }
+
+  function edgeAttachment(node: CanvasNode, side: BezierSide): Point {
+    const cx = node.x + node.width / 2, cy = node.y + node.height / 2;
+    switch (side) {
+      case "top": return { x: cx, y: node.y };
+      case "bottom": return { x: cx, y: node.y + node.height };
+      case "left": return { x: node.x, y: cy };
+      case "right": return { x: node.x + node.width, y: cy };
+    }
+  }
+
+  function distToEdge(edge: Edge, point: Point): number {
+    const fromNode = store.nodes.find(n => n.id === edge.fromNode);
+    const toNode = store.nodes.find(n => n.id === edge.toNode);
+    if (!fromNode || !toNode) return Infinity;
+
+    const fs = (edge.fromSide as BezierSide | undefined);
+    const ts = (edge.toSide as BezierSide | undefined);
+    const auto = edgeAutoSide(fromNode, toNode);
+    const fromSide = fs ?? auto.fromSide;
+    const toSide = ts ?? auto.toSide;
+
+    const p0 = edgeAttachment(fromNode, fromSide);
+    const p3 = edgeAttachment(toNode, toSide);
+    const nFrom = edgeSideNormals[fromSide];
+    const nTo = edgeSideNormals[toSide];
+    const dist = Math.max(40, Math.hypot(p3.x - p0.x, p3.y - p0.y) * 0.4);
+    const p1 = { x: p0.x + nFrom.x * dist, y: p0.y + nFrom.y * dist };
+    const p2 = { x: p3.x + nTo.x * dist, y: p3.y + nTo.y * dist };
+
+    let minD = Infinity;
+    const N = 24;
+    for (let i = 0; i <= N; i++) {
+      const t = i / N;
+      const u = 1 - t;
+      const bx = u*u*u*p0.x + 3*u*u*t*p1.x + 3*u*t*t*p2.x + t*t*t*p3.x;
+      const by = u*u*u*p0.y + 3*u*u*t*p1.y + 3*u*t*t*p2.y + t*t*t*p3.y;
+      const d = Math.hypot(bx - point.x, by - point.y);
+      if (d < minD) minD = d;
+    }
+    return minD;
+  }
+
+  function getEdgeAtCenter(): Edge | undefined {
+    const center = getCanvasCenter();
+    let best: Edge | undefined;
+    let bestDist = EDGE_HIT_THRESHOLD;
+    for (const edge of store.edges) {
+      const d = distToEdge(edge, center);
+      if (d < bestDist) {
+        bestDist = d;
+        best = edge;
+      }
+    }
+    return best;
+  }
+
+  let editingEdgeLabel = $state(false);
+  let edgeLabelValue = $state("");
+  let edgeLabelInputEl: HTMLInputElement | undefined = $state();
+
+  function startEdgeLabelEdit() {
+    const edgeId = store.selectedEdgeId;
+    if (!edgeId) return;
+    const edge = store.edges.find(e => e.id === edgeId);
+    edgeLabelValue = edge?.label ?? "";
+    editingEdgeLabel = true;
+    store.enterInsert();
+    // Focus after DOM update
+    requestAnimationFrame(() => edgeLabelInputEl?.focus());
+  }
+
+  function finishEdgeLabelEdit() {
+    if (store.selectedEdgeId) {
+      store.updateEdgeLabel(store.selectedEdgeId, edgeLabelValue);
+    }
+    editingEdgeLabel = false;
+    store.exitInsert();
+  }
+
+  function handleEdgeClick(id: string) {
+    store.selectEdge(id);
   }
 
   function handleNodeClick(id: string) {
@@ -400,6 +514,7 @@
   );
   const colors = $derived(store.config?.colors);
   const nodeUnderCursor = $derived(getNodeAtCenter());
+  const edgeUnderCursor = $derived(nodeUnderCursor ? undefined : getEdgeAtCenter());
 
   let containerEl: HTMLDivElement | undefined = $state();
 
@@ -447,7 +562,14 @@
     <!-- SVG layer for edges -->
     <svg class="edge-layer" viewBox="-10000 -10000 20000 20000">
       {#each store.edges as edge (edge.id)}
-        <EdgeComponent {edge} nodes={store.nodes} defaultColor={colors?.edge ?? '#585b70'} />
+        <EdgeComponent
+          {edge}
+          nodes={store.nodes}
+          defaultColor={colors?.edge ?? '#585b70'}
+          selected={store.selectedEdgeId === edge.id}
+          hovered={edgeUnderCursor?.id === edge.id && store.mode === "normal"}
+          onClick={handleEdgeClick}
+        />
       {/each}
       {#if store.mode === "connect" && store.connectFromNodeId}
         {@const fromNode = store.nodes.find(n => n.id === store.connectFromNodeId)}
@@ -485,6 +607,28 @@
         resolveColor={store.resolveColor}
       />
     {/each}
+
+    <!-- Edge label editor overlay -->
+    {#if editingEdgeLabel && store.selectedEdgeId}
+      {@const selEdge = store.edges.find(e => e.id === store.selectedEdgeId)}
+      {#if selEdge}
+        {@const fn = store.nodes.find(n => n.id === selEdge.fromNode)}
+        {@const tn = store.nodes.find(n => n.id === selEdge.toNode)}
+        {#if fn && tn}
+          {@const mx = (fn.x + fn.width / 2 + tn.x + tn.width / 2) / 2}
+          {@const my = (fn.y + fn.height / 2 + tn.y + tn.height / 2) / 2}
+          <div class="edge-label-editor" style="left: {mx}px; top: {my}px;">
+            <input
+              bind:this={edgeLabelInputEl}
+              bind:value={edgeLabelValue}
+              onkeydown={(e) => { if (e.key === 'Enter' || e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); finishEdgeLabelEdit(); }}}
+              class="edge-label-input"
+              placeholder="label"
+            />
+          </div>
+        {/if}
+      {/if}
+    {/if}
   </div>
 
   <!-- Status bar -->
@@ -502,7 +646,9 @@
     {:else if store.mode === "connect"}
       <span class="hint">hjkl:move Enter:connect Esc:cancel</span>
     {:else if nodeUnderCursor}
-      <span class="hint">hjkl:pan Shift:move Ctrl:resize Enter:edit c:connect d:del 1-6:color</span>
+      <span class="hint">hjkl:pan Shift:move Ctrl:resize Enter:edit c:connect d/Del:del 1-6:color</span>
+    {:else if edgeUnderCursor}
+      <span class="hint">hjkl:pan Enter:label d/Del:del</span>
     {:else}
       <span class="hint">hjkl:pan a:add +/-:zoom q:quit</span>
     {/if}
@@ -540,6 +686,10 @@
     height: 20000px;
     pointer-events: none;
     overflow: visible;
+  }
+
+  .edge-layer :global(path) {
+    pointer-events: stroke;
   }
 
   .crosshair {
@@ -607,5 +757,24 @@
   .filepath {
     margin-left: auto;
     opacity: 0.4;
+  }
+
+  .edge-label-editor {
+    position: absolute;
+    transform: translate(-50%, -50%);
+    z-index: 50;
+  }
+
+  .edge-label-input {
+    background: #181825;
+    color: #cdd6f4;
+    border: 1px solid #7aa2f7;
+    border-radius: 4px;
+    padding: 2px 8px;
+    font-size: 12px;
+    font-family: monospace;
+    text-align: center;
+    outline: none;
+    min-width: 80px;
   }
 </style>

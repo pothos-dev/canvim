@@ -8,6 +8,7 @@ let nodes = $state<CanvasNode[]>([]);
 let edges = $state<Edge[]>([]);
 let viewport = $state<Viewport>({ x: 0, y: 0, zoom: 1 });
 let selectedNodeId = $state<string | null>(null);
+let selectedEdgeId = $state<string | null>(null);
 let mode = $state<Mode>("normal");
 let connectFromNodeId = $state<string | null>(null);
 let connectFromSide = $state<Side | null>(null);
@@ -114,10 +115,32 @@ function setNodeColor(id: string, color: string) {
 
 function selectNode(id: string) {
   selectedNodeId = id;
+  selectedEdgeId = null;
+}
+
+function selectEdge(id: string) {
+  selectedEdgeId = id;
+  selectedNodeId = null;
+}
+
+function removeEdge(id: string) {
+  const idx = edges.findIndex((e) => e.id === id);
+  if (idx === -1) return;
+  edges.splice(idx, 1);
+  if (selectedEdgeId === id) selectedEdgeId = null;
+  debouncedSave();
+}
+
+function updateEdgeLabel(id: string, label: string) {
+  const edge = edges.find((e) => e.id === id);
+  if (edge) {
+    edge.label = label || undefined;
+    debouncedSave();
+  }
 }
 
 function enterInsert() {
-  if (selectedNodeId) mode = "insert";
+  if (selectedNodeId || selectedEdgeId) mode = "insert";
 }
 
 function exitInsert() {
@@ -126,6 +149,7 @@ function exitInsert() {
 
 function deselect() {
   selectedNodeId = null;
+  selectedEdgeId = null;
 }
 
 function snapViewport() {
@@ -206,6 +230,7 @@ export function getStore() {
     get edges() { return edges; },
     get viewport() { return viewport; },
     get selectedNodeId() { return selectedNodeId; },
+    get selectedEdgeId() { return selectedEdgeId; },
     get mode() { return mode; },
     get connectFromNodeId() { return connectFromNodeId; },
     get connectFromSide() { return connectFromSide; },
@@ -222,6 +247,9 @@ export function getStore() {
     resizeNode,
     setNodeColor,
     selectNode,
+    selectEdge,
+    removeEdge,
+    updateEdgeLabel,
     enterInsert,
     exitInsert,
     enterConnect,
