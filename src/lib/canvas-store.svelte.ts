@@ -10,6 +10,7 @@ let viewport = $state<Viewport>({ x: 0, y: 0, zoom: 1 });
 let selectedNodeIds = $state<string[]>([]);
 let selectedEdgeId = $state<string | null>(null);
 let mode = $state<Mode>("normal");
+let implicitSelect = false;
 let connectFromNodeId = $state<string | null>(null);
 let connectFromSide = $state<Side | null>(null);
 let filePath = $state<string | null>(null);
@@ -163,20 +164,24 @@ function enterInsert() {
   if (selectedNodeIds.length === 1 || selectedEdgeId) mode = "insert";
 }
 
-function enterMove() {
+function enterMove(implicit: boolean) {
+  implicitSelect = implicit;
   mode = "move";
 }
 
 function exitMove() {
   mode = "normal";
+  if (implicitSelect) { deselectAll(); implicitSelect = false; }
 }
 
-function enterResize() {
+function enterResize(implicit: boolean) {
+  implicitSelect = implicit;
   mode = "resize";
 }
 
 function exitResize() {
   mode = "normal";
+  if (implicitSelect) { deselectAll(); implicitSelect = false; }
 }
 
 function exitInsert() {
