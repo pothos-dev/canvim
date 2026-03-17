@@ -14,6 +14,7 @@ let connectFromSide = $state<Side | null>(null);
 let filePath = $state<string | null>(null);
 let config = $state<Config | null>(null);
 let saveTimeout: ReturnType<typeof setTimeout> | null = null;
+const GRID_STEP = 20;
 
 function generateId(): string {
   return crypto.randomUUID().replace(/-/g, "").slice(0, 16);
@@ -76,18 +77,13 @@ function updateNode(id: string, text: string) {
 
 function removeNode(id: string) {
   const idx = nodes.findIndex((n) => n.id === id);
-  if (idx !== -1) {
-    nodes.splice(idx, 1);
-    const edgeIdxs: number[] = [];
-    edges.forEach((e, i) => {
-      if (e.fromNode === id || e.toNode === id) edgeIdxs.push(i);
-    });
-    for (let i = edgeIdxs.length - 1; i >= 0; i--) {
-      edges.splice(edgeIdxs[i], 1);
-    }
-    if (selectedNodeId === id) selectedNodeId = null;
-    debouncedSave();
-  }
+  if (idx === -1) return;
+  nodes.splice(idx, 1);
+  const remainingEdges = edges.filter(e => e.fromNode !== id && e.toNode !== id);
+  edges.length = 0;
+  edges.push(...remainingEdges);
+  if (selectedNodeId === id) selectedNodeId = null;
+  debouncedSave();
 }
 
 function moveNode(id: string, dx: number, dy: number) {
@@ -132,13 +128,32 @@ function deselect() {
   selectedNodeId = null;
 }
 
+function snapViewport() {
+  const spacing = GRID_STEP * viewport.zoom;
+  viewport.x = Math.round(viewport.x / spacing) * spacing;
+  viewport.y = Math.round(viewport.y / spacing) * spacing;
+}
+
+function centerOn(x: number, y: number) {
+  viewport.x = -x * viewport.zoom;
+  viewport.y = -y * viewport.zoom;
+  snapViewport();
+}
+
 function pan(dx: number, dy: number) {
   viewport.x += dx;
   viewport.y += dy;
 }
 
+function panGrid(cellsX: number, cellsY: number) {
+  viewport.x += cellsX * GRID_STEP * viewport.zoom;
+  viewport.y += cellsY * GRID_STEP * viewport.zoom;
+  snapViewport();
+}
+
 function zoom(delta: number) {
   viewport.zoom = Math.max(0.1, Math.min(5, viewport.zoom + delta));
+  snapViewport();
 }
 
 function enterConnect(nodeId: string) {
@@ -214,7 +229,9 @@ export function getStore() {
     setConnectFromSide,
     addEdge,
     deselect,
+    centerOn,
     pan,
+    panGrid,
     zoom,
     resolveColor,
   };

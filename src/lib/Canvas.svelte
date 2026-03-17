@@ -15,6 +15,13 @@
   type DragType = "move" | "resize";
   type ResizeEdge = { left: boolean; right: boolean; top: boolean; bottom: boolean };
 
+  type Point = { x: number; y: number };
+
+  function pointInNode(node: CanvasNode, p: Point): boolean {
+    return p.x >= node.x && p.x <= node.x + node.width &&
+           p.y >= node.y && p.y <= node.y + node.height;
+  }
+
   // Locks focus to a node during Shift+hjkl move/resize so overlapping nodes don't steal focus
   let focusedNodeId = $state<string | null>(null);
 
@@ -75,7 +82,7 @@
       const cdir = dirFromKey(e.key);
       if (cdir) {
         if (!mouseCursorHidden) mouseCursorHidden = true;
-        store.pan(-cdir[0] * STEP, -cdir[1] * STEP);
+        store.panGrid(-cdir[0], -cdir[1]);
         return;
       }
       if (e.key === "Enter") {
@@ -114,7 +121,7 @@
         e.preventDefault();
         focusedNodeId = targetNode.id;
         store.moveNode(targetNode.id, dir[0] * STEP, dir[1] * STEP);
-        store.pan(-dir[0] * STEP, -dir[1] * STEP);
+        store.panGrid(-dir[0], -dir[1]);
         return;
       }
     }
@@ -124,7 +131,7 @@
 
     if (dir) {
       if (!mouseCursorHidden) mouseCursorHidden = true;
-      store.pan(-dir[0] * STEP, -dir[1] * STEP);
+      store.panGrid(-dir[0], -dir[1]);
       return;
     }
 
@@ -153,74 +160,47 @@
       case "Delete":
         if (targetNode) store.removeNode(targetNode.id);
         break;
-      case nk.color_red:
-        if (targetNode) store.setNodeColor(targetNode.id, "1");
-        break;
-      case nk.color_orange:
-        if (targetNode) store.setNodeColor(targetNode.id, "2");
-        break;
-      case nk.color_yellow:
-        if (targetNode) store.setNodeColor(targetNode.id, "3");
-        break;
-      case nk.color_green:
-        if (targetNode) store.setNodeColor(targetNode.id, "4");
-        break;
-      case nk.color_cyan:
-        if (targetNode) store.setNodeColor(targetNode.id, "5");
-        break;
-      case nk.color_purple:
-        if (targetNode) store.setNodeColor(targetNode.id, "6");
-        break;
-      case nk.color_clear:
-        if (targetNode) store.setNodeColor(targetNode.id, "");
-        break;
       case nk.quit:
         store.quit();
         break;
       case "c":
         if (targetNode) store.enterConnect(targetNode.id);
         break;
+      default: {
+        if (!targetNode) break;
+        const colorKeys: Record<string, string> = {
+          [nk.color_red]: "1", [nk.color_orange]: "2", [nk.color_yellow]: "3",
+          [nk.color_green]: "4", [nk.color_cyan]: "5", [nk.color_purple]: "6",
+          [nk.color_clear]: "",
+        };
+        const color = colorKeys[e.key];
+        if (color !== undefined) store.setNodeColor(targetNode.id, color);
+      }
     }
   }
 
-  function getCanvasCenter(): { x: number; y: number } {
+  function getCanvasCenter(): Point {
     return {
       x: -store.viewport.x / store.viewport.zoom,
       y: -store.viewport.y / store.viewport.zoom,
     };
   }
 
-  function isNodeUnderCursor(id: string): boolean {
-    const center = getCanvasCenter();
-    const node = store.nodes.find((n) => n.id === id);
-    if (!node) return false;
-    return center.x >= node.x && center.x <= node.x + node.width &&
-           center.y >= node.y && center.y <= node.y + node.height;
-  }
-
   function getNodeAtCenter() {
     const center = getCanvasCenter();
-    return store.nodes.find(
-      (n) =>
-        center.x >= n.x &&
-        center.x <= n.x + n.width &&
-        center.y >= n.y &&
-        center.y <= n.y + n.height
-    );
+    return store.nodes.find((n) => pointInNode(n, center));
   }
 
-  function detectSide(node: CanvasNode, point: { x: number; y: number }): Side {
-    const cx = node.x + node.width / 2;
-    const cy = node.y + node.height / 2;
-    const dx = (point.x - cx) / node.width;
-    const dy = (point.y - cy) / node.height;
+  function detectSide(node: CanvasNode, point: Point): Side {
+    const dx = (point.x - node.x - node.width / 2) / node.width;
+    const dy = (point.y - node.y - node.height / 2) / node.height;
     if (Math.abs(dx) > Math.abs(dy)) {
       return dx > 0 ? "right" : "left";
     }
     return dy > 0 ? "bottom" : "top";
   }
 
-  function getAttachmentPoint(node: CanvasNode, side: Side): { x: number; y: number } {
+  function getAttachmentPoint(node: CanvasNode, side: Side): Point {
     const cx = node.x + node.width / 2;
     const cy = node.y + node.height / 2;
     switch (side) {
@@ -232,16 +212,7 @@
   }
 
   function sideBetweenNodes(from: CanvasNode, to: CanvasNode): Side {
-    const fcx = from.x + from.width / 2;
-    const fcy = from.y + from.height / 2;
-    const tcx = to.x + to.width / 2;
-    const tcy = to.y + to.height / 2;
-    const dx = (tcx - fcx) / from.width;
-    const dy = (tcy - fcy) / from.height;
-    if (Math.abs(dx) > Math.abs(dy)) {
-      return dx > 0 ? "right" : "left";
-    }
-    return dy > 0 ? "bottom" : "top";
+    return detectSide(from, { x: to.x + to.width / 2, y: to.y + to.height / 2 });
   }
 
   // Track when cursor leaves fromNode to detect fromSide
@@ -255,8 +226,7 @@
     const fromNode = store.nodes.find(n => n.id === store.connectFromNodeId);
     if (!fromNode) return;
     const center = getCanvasCenter();
-    const inside = center.x >= fromNode.x && center.x <= fromNode.x + fromNode.width &&
-                   center.y >= fromNode.y && center.y <= fromNode.y + fromNode.height;
+    const inside = pointInNode(fromNode, center);
     if (wasInsideFromNode && !inside) {
       store.setConnectFromSide(detectSide(fromNode, center));
     }
@@ -272,10 +242,7 @@
     if (didDrag) { didDrag = false; return; }
     const node = store.nodes.find((n) => n.id === id);
     if (!node) return;
-    const cx = node.x + node.width / 2;
-    const cy = node.y + node.height / 2;
-    store.viewport.x = -cx * store.viewport.zoom;
-    store.viewport.y = -cy * store.viewport.zoom;
+    store.centerOn(node.x + node.width / 2, node.y + node.height / 2);
     store.selectNode(id);
     store.enterInsert();
   }
@@ -312,25 +279,20 @@
   }
 
   function findNodeAt(canvasX: number, canvasY: number): CanvasNode | undefined {
+    const p = { x: canvasX, y: canvasY };
     // Reverse order so topmost (last rendered) is found first
     for (let i = store.nodes.length - 1; i >= 0; i--) {
-      const n = store.nodes[i];
-      if (canvasX >= n.x && canvasX <= n.x + n.width &&
-          canvasY >= n.y && canvasY <= n.y + n.height) {
-        return n;
-      }
+      if (pointInNode(store.nodes[i], p)) return store.nodes[i];
     }
     return undefined;
   }
 
-  function getCursorForDrag(type: DragType, edge?: ResizeEdge): string {
-    if (type === "move") return "grabbing";
-    if (!edge) return "grabbing";
+  function cursorForResizeEdge(edge: ResizeEdge): string {
     if ((edge.top && edge.left) || (edge.bottom && edge.right)) return "nwse-resize";
     if ((edge.top && edge.right) || (edge.bottom && edge.left)) return "nesw-resize";
     if (edge.left || edge.right) return "ew-resize";
     if (edge.top || edge.bottom) return "ns-resize";
-    return "grabbing";
+    return "default";
   }
 
   function handleMouseDown(e: MouseEvent) {
@@ -359,7 +321,7 @@
       resizeEdge: resizeEdge ?? undefined,
     };
     // Force cursor on body so nothing can override it during drag
-    document.body.style.cursor = getCursorForDrag(type, resizeEdge ?? undefined);
+    document.body.style.cursor = resizeEdge ? cursorForResizeEdge(resizeEdge) : "grabbing";
   }
 
   function handleMouseMove(e: MouseEvent) {
@@ -422,14 +384,7 @@
       return;
     }
     const edge = getResizeEdge(node, canvas.x, canvas.y);
-    if (!edge) {
-      containerEl.style.cursor = "grab";
-      return;
-    }
-    if ((edge.top && edge.left) || (edge.bottom && edge.right)) containerEl.style.cursor = "nwse-resize";
-    else if ((edge.top && edge.right) || (edge.bottom && edge.left)) containerEl.style.cursor = "nesw-resize";
-    else if (edge.left || edge.right) containerEl.style.cursor = "ew-resize";
-    else if (edge.top || edge.bottom) containerEl.style.cursor = "ns-resize";
+    containerEl.style.cursor = edge ? cursorForResizeEdge(edge) : "grab";
   }
 
   function handleBackgroundClick(e: MouseEvent) {
@@ -490,7 +445,7 @@
     style="transform: translate(calc(50vw + {store.viewport.x}px), calc(50vh + {store.viewport.y}px)) scale({store.viewport.zoom});"
   >
     <!-- SVG layer for edges -->
-    <svg class="edge-layer">
+    <svg class="edge-layer" viewBox="-10000 -10000 20000 20000">
       {#each store.edges as edge (edge.id)}
         <EdgeComponent {edge} nodes={store.nodes} defaultColor={colors?.edge ?? '#585b70'} />
       {/each}
