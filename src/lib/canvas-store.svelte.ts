@@ -139,6 +139,14 @@ function updateEdgeLabel(id: string, label: string) {
   }
 }
 
+function setEdgeColor(id: string, color: string) {
+  const edge = edges.find((e) => e.id === id);
+  if (edge) {
+    edge.color = color || undefined;
+    debouncedSave();
+  }
+}
+
 function enterInsert() {
   if (selectedNodeId || selectedEdgeId) mode = "insert";
 }
@@ -250,6 +258,7 @@ export function getStore() {
     selectEdge,
     removeEdge,
     updateEdgeLabel,
+    setEdgeColor,
     enterInsert,
     exitInsert,
     enterConnect,

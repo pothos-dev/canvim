@@ -180,14 +180,16 @@
         if (targetNode) store.enterConnect(targetNode.id);
         break;
       default: {
-        if (!targetNode) break;
         const colorKeys: Record<string, string> = {
           [nk.color_red]: "1", [nk.color_orange]: "2", [nk.color_yellow]: "3",
           [nk.color_green]: "4", [nk.color_cyan]: "5", [nk.color_purple]: "6",
           [nk.color_clear]: "",
         };
         const color = colorKeys[e.key];
-        if (color !== undefined) store.setNodeColor(targetNode.id, color);
+        if (color !== undefined) {
+          if (targetNode) store.setNodeColor(targetNode.id, color);
+          else if (edgeUnderCursor) store.setEdgeColor(edgeUnderCursor.id, color);
+        }
       }
     }
   }
@@ -569,6 +571,7 @@
           selected={store.selectedEdgeId === edge.id}
           hovered={edgeUnderCursor?.id === edge.id && store.mode === "normal"}
           onClick={handleEdgeClick}
+          resolveColor={store.resolveColor}
         />
       {/each}
       {#if store.mode === "connect" && store.connectFromNodeId}
@@ -648,7 +651,7 @@
     {:else if nodeUnderCursor}
       <span class="hint">hjkl:pan Shift:move Ctrl:resize Enter:edit c:connect d/Del:del 1-6:color</span>
     {:else if edgeUnderCursor}
-      <span class="hint">hjkl:pan Enter:label d/Del:del</span>
+      <span class="hint">hjkl:pan Enter:label d/Del:del 1-6:color</span>
     {:else}
       <span class="hint">hjkl:pan a:add +/-:zoom q:quit</span>
     {/if}

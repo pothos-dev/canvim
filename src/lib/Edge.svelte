@@ -8,9 +8,10 @@
     selected?: boolean;
     hovered?: boolean;
     onClick?: (id: string) => void;
+    resolveColor?: (preset: string | undefined) => string | undefined;
   }
 
-  let { edge, nodes, defaultColor = "#585b70", selected = false, hovered = false, onClick }: Props = $props();
+  let { edge, nodes, defaultColor = "#585b70", selected = false, hovered = false, onClick, resolveColor }: Props = $props();
 
   type Point = { x: number; y: number };
   type Side = "top" | "bottom" | "left" | "right";
@@ -73,7 +74,7 @@
 
   const from = $derived(attachmentPoint(edge.fromNode, resolvedSides.fromSide));
   const to = $derived(attachmentPoint(edge.toNode, resolvedSides.toSide));
-  const edgeColor = $derived(edge.color ?? defaultColor);
+  const edgeColor = $derived(resolveColor?.(edge.color) ?? edge.color ?? defaultColor);
 
   const path = $derived.by(() => {
     const nFrom = sideNormals[resolvedSides.fromSide];
@@ -88,9 +89,7 @@
   const arrowAngle = $derived(sideAngles[resolvedSides.toSide] + 180);
   const midpoint = $derived({ x: (from.x + to.x) / 2, y: (from.y + to.y) / 2 });
 
-  const strokeColor = $derived(
-    selected ? "#f7768e" : hovered ? "#7aa2f7" : edgeColor
-  );
+  const opacity = $derived(selected || hovered ? 1 : 0.7);
   const strokeWidth = $derived(selected || hovered ? 3 : 2);
 
   function handleClick(e: MouseEvent) {
@@ -111,12 +110,13 @@
 />
 
 <!-- Visible edge -->
-<path d={path} stroke={strokeColor} stroke-width={strokeWidth} fill="none" style="pointer-events: none;" />
+<path d={path} stroke={edgeColor} stroke-width={strokeWidth} fill="none" opacity={opacity} style="pointer-events: none;" />
 
 {#if edge.toEnd !== "none"}
   <polygon
     points="-8,-4 0,0 -8,4"
-    fill={strokeColor}
+    fill={edgeColor}
+    opacity={opacity}
     transform="translate({to.x},{to.y}) rotate({arrowAngle})"
     style="pointer-events: none;"
   />
