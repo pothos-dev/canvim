@@ -4,6 +4,36 @@ use std::path::PathBuf;
 use tauri::Manager;
 use tauri_plugin_cli::CliExt;
 
+// --- Config macro ---
+
+/// Generates a config struct with serde defaults, default fns, and Default impl.
+/// Each field is specified as `field_name: Type = default_expr`.
+macro_rules! config_struct {
+    ($name:ident { $( $field:ident : $ty:ty = $default:expr ),+ $(,)? }) => {
+        ::paste::paste! {
+            $(
+                fn [<default_ $name:snake _ $field>]() -> $ty { $default }
+            )+
+
+            #[derive(Debug, Clone, Serialize, Deserialize)]
+            pub struct $name {
+                $(
+                    #[serde(default = "" [<default_ $name:snake _ $field>] "")]
+                    pub $field: $ty,
+                )+
+            }
+
+            impl Default for $name {
+                fn default() -> Self {
+                    Self {
+                        $( $field: [<default_ $name:snake _ $field>](), )+
+                    }
+                }
+            }
+        }
+    };
+}
+
 // --- Config ---
 
 const DEFAULT_CONFIG: &str = r##"# Canvim configuration
@@ -81,93 +111,81 @@ exit = "Escape"
 exit = "Escape"
 "##;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Config {
-    #[serde(default)]
-    pub colors: ConfigColors,
-    #[serde(default)]
-    pub keybindings: ConfigKeybindings,
-}
+config_struct!(ConfigColors {
+    background: String = "#181825".into(),
+    node_background: String = "#1e1e1e".into(),
+    node_border: String = "#555555".into(),
+    edge: String = "#585b70".into(),
+    text: String = "#cdd6f4".into(),
+    crosshair: String = "rgba(205, 214, 244, 0.3)".into(),
+    dot_grid: String = "rgba(205, 214, 244, 0.08)".into(),
+    status_bar_bg: String = "#11111b".into(),
+    status_bar_text: String = "#6c7086".into(),
+    node_font: String = "system-ui, sans-serif".into(),
+    node_font_size: u32 = 14,
+    red: String = "#fb464c".into(),
+    orange: String = "#e9973f".into(),
+    yellow: String = "#e0de71".into(),
+    green: String = "#44cf6e".into(),
+    cyan: String = "#53dfdd".into(),
+    purple: String = "#a882ff".into(),
+});
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ConfigColors {
-    #[serde(default = "default_background")]
-    pub background: String,
-    #[serde(default = "default_node_background")]
-    pub node_background: String,
-    #[serde(default = "default_node_border")]
-    pub node_border: String,
-    #[serde(default = "default_edge")]
-    pub edge: String,
-    #[serde(default = "default_text")]
-    pub text: String,
-    #[serde(default = "default_crosshair")]
-    pub crosshair: String,
-    #[serde(default = "default_dot_grid")]
-    pub dot_grid: String,
-    #[serde(default = "default_status_bar_bg")]
-    pub status_bar_bg: String,
-    #[serde(default = "default_status_bar_text")]
-    pub status_bar_text: String,
-    #[serde(default = "default_node_font")]
-    pub node_font: String,
-    #[serde(default = "default_node_font_size")]
-    pub node_font_size: u32,
-    #[serde(default = "default_red")]
-    pub red: String,
-    #[serde(default = "default_orange")]
-    pub orange: String,
-    #[serde(default = "default_yellow")]
-    pub yellow: String,
-    #[serde(default = "default_green")]
-    pub green: String,
-    #[serde(default = "default_cyan")]
-    pub cyan: String,
-    #[serde(default = "default_purple")]
-    pub purple: String,
-}
+config_struct!(NormalKeybindings {
+    pan_left: String = "h".into(),
+    pan_right: String = "l".into(),
+    pan_up: String = "k".into(),
+    pan_down: String = "j".into(),
+    zoom_in: String = "+".into(),
+    zoom_out: String = "-".into(),
+    add_node: String = "a".into(),
+    select: String = "Enter".into(),
+    insert: String = "i".into(),
+    delete: String = "d".into(),
+    deselect: String = "Escape".into(),
+    quit: String = "q".into(),
+    enter_move: String = "m".into(),
+    enter_resize: String = "r".into(),
+    connect: String = "c".into(),
+    toggle_select: String = "v".into(),
+    deselect_all: String = "V".into(),
+    color_red: String = "1".into(),
+    color_orange: String = "2".into(),
+    color_yellow: String = "3".into(),
+    color_green: String = "4".into(),
+    color_cyan: String = "5".into(),
+    color_purple: String = "6".into(),
+    color_clear: String = "0".into(),
+});
 
-fn default_background() -> String { "#181825".into() }
-fn default_node_background() -> String { "#1e1e1e".into() }
-fn default_node_border() -> String { "#555555".into() }
-fn default_edge() -> String { "#585b70".into() }
-fn default_text() -> String { "#cdd6f4".into() }
-fn default_crosshair() -> String { "rgba(205, 214, 244, 0.3)".into() }
-fn default_dot_grid() -> String { "rgba(205, 214, 244, 0.08)".into() }
-fn default_status_bar_bg() -> String { "#11111b".into() }
-fn default_status_bar_text() -> String { "#6c7086".into() }
-fn default_node_font() -> String { "system-ui, sans-serif".into() }
-fn default_node_font_size() -> u32 { 14 }
-fn default_red() -> String { "#fb464c".into() }
-fn default_orange() -> String { "#e9973f".into() }
-fn default_yellow() -> String { "#e0de71".into() }
-fn default_green() -> String { "#44cf6e".into() }
-fn default_cyan() -> String { "#53dfdd".into() }
-fn default_purple() -> String { "#a882ff".into() }
+config_struct!(MoveKeybindings {
+    left: String = "h".into(),
+    right: String = "l".into(),
+    up: String = "k".into(),
+    down: String = "j".into(),
+    exit: String = "Escape".into(),
+});
 
-impl Default for ConfigColors {
-    fn default() -> Self {
-        Self {
-            background: default_background(),
-            node_background: default_node_background(),
-            node_border: default_node_border(),
-            edge: default_edge(),
-            text: default_text(),
-            crosshair: default_crosshair(),
-            dot_grid: default_dot_grid(),
-            status_bar_bg: default_status_bar_bg(),
-            status_bar_text: default_status_bar_text(),
-            node_font: default_node_font(),
-            node_font_size: default_node_font_size(),
-            red: default_red(),
-            orange: default_orange(),
-            yellow: default_yellow(),
-            green: default_green(),
-            cyan: default_cyan(),
-            purple: default_purple(),
-        }
-    }
-}
+config_struct!(ResizeKeybindings {
+    left: String = "h".into(),
+    right: String = "l".into(),
+    up: String = "k".into(),
+    down: String = "j".into(),
+    exit: String = "Escape".into(),
+});
+
+config_struct!(ConnectKeybindings {
+    left: String = "h".into(),
+    right: String = "l".into(),
+    up: String = "k".into(),
+    down: String = "j".into(),
+    confirm: String = "Enter".into(),
+    exit: String = "Escape".into(),
+});
+
+config_struct!(InsertKeybindings {
+    exit: String = "Escape".into(),
+});
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ConfigKeybindings {
@@ -196,213 +214,11 @@ impl Default for ConfigKeybindings {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct NormalKeybindings {
-    #[serde(default = "default_pan_left")]
-    pub pan_left: String,
-    #[serde(default = "default_pan_right")]
-    pub pan_right: String,
-    #[serde(default = "default_pan_up")]
-    pub pan_up: String,
-    #[serde(default = "default_pan_down")]
-    pub pan_down: String,
-    #[serde(default = "default_zoom_in")]
-    pub zoom_in: String,
-    #[serde(default = "default_zoom_out")]
-    pub zoom_out: String,
-    #[serde(default = "default_add_node")]
-    pub add_node: String,
-    #[serde(default = "default_select")]
-    pub select: String,
-    #[serde(default = "default_insert")]
-    pub insert: String,
-    #[serde(default = "default_delete")]
-    pub delete: String,
-    #[serde(default = "default_deselect")]
-    pub deselect: String,
-    #[serde(default = "default_quit")]
-    pub quit: String,
-    #[serde(default = "default_enter_move")]
-    pub enter_move: String,
-    #[serde(default = "default_enter_resize")]
-    pub enter_resize: String,
-    #[serde(default = "default_connect")]
-    pub connect: String,
-    #[serde(default = "default_toggle_select")]
-    pub toggle_select: String,
-    #[serde(default = "default_deselect_all")]
-    pub deselect_all: String,
-    #[serde(default = "default_color_red")]
-    pub color_red: String,
-    #[serde(default = "default_color_orange")]
-    pub color_orange: String,
-    #[serde(default = "default_color_yellow")]
-    pub color_yellow: String,
-    #[serde(default = "default_color_green")]
-    pub color_green: String,
-    #[serde(default = "default_color_cyan")]
-    pub color_cyan: String,
-    #[serde(default = "default_color_purple")]
-    pub color_purple: String,
-    #[serde(default = "default_color_clear")]
-    pub color_clear: String,
-}
-
-fn default_pan_left() -> String { "h".into() }
-fn default_pan_right() -> String { "l".into() }
-fn default_pan_up() -> String { "k".into() }
-fn default_pan_down() -> String { "j".into() }
-fn default_zoom_in() -> String { "+".into() }
-fn default_zoom_out() -> String { "-".into() }
-fn default_add_node() -> String { "a".into() }
-fn default_select() -> String { "Enter".into() }
-fn default_insert() -> String { "i".into() }
-fn default_delete() -> String { "d".into() }
-fn default_deselect() -> String { "Escape".into() }
-fn default_quit() -> String { "q".into() }
-fn default_color_red() -> String { "1".into() }
-fn default_color_orange() -> String { "2".into() }
-fn default_color_yellow() -> String { "3".into() }
-fn default_color_green() -> String { "4".into() }
-fn default_color_cyan() -> String { "5".into() }
-fn default_color_purple() -> String { "6".into() }
-fn default_color_clear() -> String { "0".into() }
-fn default_enter_move() -> String { "m".into() }
-fn default_enter_resize() -> String { "r".into() }
-fn default_connect() -> String { "c".into() }
-fn default_toggle_select() -> String { "v".into() }
-fn default_deselect_all() -> String { "V".into() }
-
-impl Default for NormalKeybindings {
-    fn default() -> Self {
-        Self {
-            pan_left: default_pan_left(),
-            pan_right: default_pan_right(),
-            pan_up: default_pan_up(),
-            pan_down: default_pan_down(),
-            zoom_in: default_zoom_in(),
-            zoom_out: default_zoom_out(),
-            add_node: default_add_node(),
-            select: default_select(),
-            insert: default_insert(),
-            delete: default_delete(),
-            deselect: default_deselect(),
-            quit: default_quit(),
-            enter_move: default_enter_move(),
-            enter_resize: default_enter_resize(),
-            connect: default_connect(),
-            toggle_select: default_toggle_select(),
-            deselect_all: default_deselect_all(),
-            color_red: default_color_red(),
-            color_orange: default_color_orange(),
-            color_yellow: default_color_yellow(),
-            color_green: default_color_green(),
-            color_cyan: default_color_cyan(),
-            color_purple: default_color_purple(),
-            color_clear: default_color_clear(),
-        }
-    }
-}
-
-fn default_dir_left() -> String { "h".into() }
-fn default_dir_right() -> String { "l".into() }
-fn default_dir_up() -> String { "k".into() }
-fn default_dir_down() -> String { "j".into() }
-fn default_exit() -> String { "Escape".into() }
-fn default_confirm() -> String { "Enter".into() }
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct MoveKeybindings {
-    #[serde(default = "default_dir_left")]
-    pub left: String,
-    #[serde(default = "default_dir_right")]
-    pub right: String,
-    #[serde(default = "default_dir_up")]
-    pub up: String,
-    #[serde(default = "default_dir_down")]
-    pub down: String,
-    #[serde(default = "default_exit")]
-    pub exit: String,
-}
-
-impl Default for MoveKeybindings {
-    fn default() -> Self {
-        Self {
-            left: default_dir_left(),
-            right: default_dir_right(),
-            up: default_dir_up(),
-            down: default_dir_down(),
-            exit: default_exit(),
-        }
-    }
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ResizeKeybindings {
-    #[serde(default = "default_dir_left")]
-    pub left: String,
-    #[serde(default = "default_dir_right")]
-    pub right: String,
-    #[serde(default = "default_dir_up")]
-    pub up: String,
-    #[serde(default = "default_dir_down")]
-    pub down: String,
-    #[serde(default = "default_exit")]
-    pub exit: String,
-}
-
-impl Default for ResizeKeybindings {
-    fn default() -> Self {
-        Self {
-            left: default_dir_left(),
-            right: default_dir_right(),
-            up: default_dir_up(),
-            down: default_dir_down(),
-            exit: default_exit(),
-        }
-    }
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ConnectKeybindings {
-    #[serde(default = "default_dir_left")]
-    pub left: String,
-    #[serde(default = "default_dir_right")]
-    pub right: String,
-    #[serde(default = "default_dir_up")]
-    pub up: String,
-    #[serde(default = "default_dir_down")]
-    pub down: String,
-    #[serde(default = "default_confirm")]
-    pub confirm: String,
-    #[serde(default = "default_exit")]
-    pub exit: String,
-}
-
-impl Default for ConnectKeybindings {
-    fn default() -> Self {
-        Self {
-            left: default_dir_left(),
-            right: default_dir_right(),
-            up: default_dir_up(),
-            down: default_dir_down(),
-            confirm: default_confirm(),
-            exit: default_exit(),
-        }
-    }
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct InsertKeybindings {
-    #[serde(default = "default_exit")]
-    pub exit: String,
-}
-
-impl Default for InsertKeybindings {
-    fn default() -> Self {
-        Self {
-            exit: default_exit(),
-        }
-    }
+pub struct Config {
+    #[serde(default)]
+    pub colors: ConfigColors,
+    #[serde(default)]
+    pub keybindings: ConfigKeybindings,
 }
 
 impl Default for Config {

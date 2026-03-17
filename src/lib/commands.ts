@@ -1,8 +1,7 @@
-import type { Config, CanvasNode, Edge } from "./types";
+import type { Config, CanvasNode, Edge, Point } from "./types";
 import type { Mode } from "./canvas-store.svelte";
-
-const STEP = 20;
-const ZOOM_STEP = 0.15;
+import { STEP, ZOOM_STEP } from "./constants";
+import { detectSide, autoSides } from "./geometry";
 
 export interface CommandContext {
   store: ReturnType<typeof import("./canvas-store.svelte").getStore>;
@@ -16,12 +15,8 @@ export interface CommandContext {
   hideCursor: () => void;
   /** For connect mode: get node at viewport center */
   getNodeAtCenter: () => CanvasNode | undefined;
-  /** For connect: auto-detect side between nodes */
-  sideBetweenNodes: (from: CanvasNode, to: CanvasNode) => "top" | "right" | "bottom" | "left";
-  /** For connect: detect side from point */
-  detectSide: (node: CanvasNode, point: { x: number; y: number }) => "top" | "right" | "bottom" | "left";
   /** Get canvas center point */
-  getCanvasCenter: () => { x: number; y: number };
+  getCanvasCenter: () => Point;
 }
 
 export interface Command {
@@ -228,7 +223,7 @@ export const commands: Command[] = [
   // Deselect (Esc)
   { id: "deselect", mode: "normal", label: "deselect", configKey: "normal.deselect", hidden: true,
     available: always,
-    execute: (ctx) => ctx.store.deselect(),
+    execute: (ctx) => ctx.store.deselectAll(),
   },
 
   // Colors
@@ -280,9 +275,9 @@ export const commands: Command[] = [
       }
       const fromNode = ctx.store.nodes.find(n => n.id === ctx.store.connectFromNodeId);
       if (!fromNode) { ctx.store.exitConnect(); return; }
-      const fromSide = ctx.store.connectFromSide ?? ctx.sideBetweenNodes(fromNode, target);
+      const fromSide = ctx.store.connectFromSide ?? autoSides(fromNode, target).fromSide;
       const center = ctx.getCanvasCenter();
-      const toSide = ctx.detectSide(target, center);
+      const toSide = detectSide(target, center);
       ctx.store.addEdge(fromNode.id, fromSide, target.id, toSide);
       ctx.store.exitConnect();
     },

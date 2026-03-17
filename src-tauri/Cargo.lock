@@ -423,6 +423,7 @@ name = "canvim"
 version = "0.1.0"
 dependencies = [
  "dirs",
+ "paste",
  "serde",
  "serde_json",
  "tauri",
@@ -2489,6 +2490,12 @@ dependencies = [
  "smallvec",
  "windows-link 0.2.1",
 ]
+
+[[package]]
+name = "paste"
+version = "1.0.15"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "57c0d7b74b563b49d38dae00a0c37d4d6de9b432382b2892f0574ddcae73fd0a"
 
 [[package]]
 name = "pathdiff"

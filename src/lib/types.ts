@@ -1,3 +1,6 @@
+export type Point = { x: number; y: number };
+export type Side = "top" | "right" | "bottom" | "left";
+
 export interface Viewport {
   x: number;
   y: number;

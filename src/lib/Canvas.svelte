@@ -2,26 +2,16 @@
   import { onMount } from "svelte";
   import NodeComponent from "./Node.svelte";
   import EdgeComponent from "./Edge.svelte";
-  import type { CanvasNode, Edge } from "./types";
-  import type { Side } from "./canvas-store.svelte";
+  import type { CanvasNode, Edge, Point, Side } from "./types";
   import { getStore } from "./canvas-store.svelte";
   import { buildKeyMap, getHints, type CommandContext, type HintSnapshot } from "./commands";
+  import { STEP, ZOOM_STEP, BORDER_ZONE, EDGE_HIT_THRESHOLD } from "./constants";
+  import { pointInNode, attachmentPoint, detectSide, autoSides, distToBezier } from "./geometry";
 
   const store = getStore();
 
-  const STEP = 20;
-  const ZOOM_STEP = 0.15;
-  const BORDER_ZONE = 8; // px from edge for resize detection
-
   type DragType = "move" | "resize";
   type ResizeEdge = { left: boolean; right: boolean; top: boolean; bottom: boolean };
-
-  type Point = { x: number; y: number };
-
-  function pointInNode(node: CanvasNode, p: Point): boolean {
-    return p.x >= node.x && p.x <= node.x + node.width &&
-           p.y >= node.y && p.y <= node.y + node.height;
-  }
 
   let dragging = $state<{
     type: DragType;
@@ -55,30 +45,6 @@
     return store.nodes.find((n) => pointInNode(n, center));
   }
 
-  function detectSide(node: CanvasNode, point: Point): Side {
-    const dx = (point.x - node.x - node.width / 2) / node.width;
-    const dy = (point.y - node.y - node.height / 2) / node.height;
-    if (Math.abs(dx) > Math.abs(dy)) {
-      return dx > 0 ? "right" : "left";
-    }
-    return dy > 0 ? "bottom" : "top";
-  }
-
-  function getAttachmentPoint(node: CanvasNode, side: Side): Point {
-    const cx = node.x + node.width / 2;
-    const cy = node.y + node.height / 2;
-    switch (side) {
-      case "top": return { x: cx, y: node.y };
-      case "bottom": return { x: cx, y: node.y + node.height };
-      case "left": return { x: node.x, y: cy };
-      case "right": return { x: node.x + node.width, y: cy };
-    }
-  }
-
-  function sideBetweenNodes(from: CanvasNode, to: CanvasNode): Side {
-    return detectSide(from, { x: to.x + to.width / 2, y: to.y + to.height / 2 });
-  }
-
   // Track when cursor leaves fromNode to detect fromSide
   let wasInsideFromNode = false;
 
@@ -102,64 +68,18 @@
     store.addNode(center.x, center.y);
   }
 
-  // --- Edge proximity detection for crosshair ---
-  const EDGE_HIT_THRESHOLD = 12; // canvas-space pixels
-
-  type BezierSide = "top" | "bottom" | "left" | "right";
-  const edgeSideNormals: Record<BezierSide, Point> = {
-    top: { x: 0, y: -1 }, bottom: { x: 0, y: 1 },
-    left: { x: -1, y: 0 }, right: { x: 1, y: 0 },
-  };
-
-  function edgeAutoSide(fromNode: CanvasNode, toNode: CanvasNode): { fromSide: BezierSide; toSide: BezierSide } {
-    const dx = (toNode.x + toNode.width / 2) - (fromNode.x + fromNode.width / 2);
-    const dy = (toNode.y + toNode.height / 2) - (fromNode.y + fromNode.height / 2);
-    if (Math.abs(dx) >= Math.abs(dy)) {
-      return dx >= 0 ? { fromSide: "right", toSide: "left" } : { fromSide: "left", toSide: "right" };
-    }
-    return dy >= 0 ? { fromSide: "bottom", toSide: "top" } : { fromSide: "top", toSide: "bottom" };
-  }
-
-  function edgeAttachment(node: CanvasNode, side: BezierSide): Point {
-    const cx = node.x + node.width / 2, cy = node.y + node.height / 2;
-    switch (side) {
-      case "top": return { x: cx, y: node.y };
-      case "bottom": return { x: cx, y: node.y + node.height };
-      case "left": return { x: node.x, y: cy };
-      case "right": return { x: node.x + node.width, y: cy };
-    }
-  }
-
   function distToEdge(edge: Edge, point: Point): number {
     const fromNode = store.nodes.find(n => n.id === edge.fromNode);
     const toNode = store.nodes.find(n => n.id === edge.toNode);
     if (!fromNode || !toNode) return Infinity;
 
-    const fs = (edge.fromSide as BezierSide | undefined);
-    const ts = (edge.toSide as BezierSide | undefined);
-    const auto = edgeAutoSide(fromNode, toNode);
-    const fromSide = fs ?? auto.fromSide;
-    const toSide = ts ?? auto.toSide;
+    const auto = autoSides(fromNode, toNode);
+    const fromSide = (edge.fromSide as Side | undefined) ?? auto.fromSide;
+    const toSide = (edge.toSide as Side | undefined) ?? auto.toSide;
 
-    const p0 = edgeAttachment(fromNode, fromSide);
-    const p3 = edgeAttachment(toNode, toSide);
-    const nFrom = edgeSideNormals[fromSide];
-    const nTo = edgeSideNormals[toSide];
-    const dist = Math.max(40, Math.hypot(p3.x - p0.x, p3.y - p0.y) * 0.4);
-    const p1 = { x: p0.x + nFrom.x * dist, y: p0.y + nFrom.y * dist };
-    const p2 = { x: p3.x + nTo.x * dist, y: p3.y + nTo.y * dist };
-
-    let minD = Infinity;
-    const N = 24;
-    for (let i = 0; i <= N; i++) {
-      const t = i / N;
-      const u = 1 - t;
-      const bx = u*u*u*p0.x + 3*u*u*t*p1.x + 3*u*t*t*p2.x + t*t*t*p3.x;
-      const by = u*u*u*p0.y + 3*u*u*t*p1.y + 3*u*t*t*p2.y + t*t*t*p3.y;
-      const d = Math.hypot(bx - point.x, by - point.y);
-      if (d < minD) minD = d;
-    }
-    return minD;
+    const p0 = attachmentPoint(fromNode, fromSide);
+    const p3 = attachmentPoint(toNode, toSide);
+    return distToBezier(p0, p3, fromSide, toSide, point);
   }
 
   function getEdgeAtCenter(): Edge | undefined {
@@ -214,8 +134,6 @@
       editingEdgeLabel,
       hideCursor: () => { if (!mouseCursorHidden) mouseCursorHidden = true; },
       getNodeAtCenter,
-      sideBetweenNodes,
-      detectSide,
       getCanvasCenter,
     };
   }
@@ -411,7 +329,7 @@
 
   function handleBackgroundClick(e: MouseEvent) {
     if (didDrag) { didDrag = false; return; }
-    store.deselect();
+    store.deselectAll();
   }
 
   const MODE_LABELS: Record<string, string> = {
@@ -485,8 +403,8 @@
         {#if fromNode}
           {@const center = getCanvasCenter()}
           {@const target = getNodeAtCenter()}
-          {@const from = store.connectFromSide ? getAttachmentPoint(fromNode, store.connectFromSide) : { x: fromNode.x + fromNode.width / 2, y: fromNode.y + fromNode.height / 2 }}
-          {@const to = (target && target.id !== store.connectFromNodeId) ? getAttachmentPoint(target, detectSide(target, center)) : center}
+          {@const from = store.connectFromSide ? attachmentPoint(fromNode, store.connectFromSide) : { x: fromNode.x + fromNode.width / 2, y: fromNode.y + fromNode.height / 2 }}
+          {@const to = (target && target.id !== store.connectFromNodeId) ? attachmentPoint(target, detectSide(target, center)) : center}
           {@const dx = to.x - from.x}
           {@const bezierPath = `M ${from.x} ${from.y} C ${from.x + dx * 0.5} ${from.y}, ${to.x - dx * 0.5} ${to.y}, ${to.x} ${to.y}`}
           {@const angle = Math.atan2(to.y - from.y, to.x - from.x) * (180 / Math.PI)}

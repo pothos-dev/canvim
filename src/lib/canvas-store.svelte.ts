@@ -1,8 +1,8 @@
 import { invoke } from "@tauri-apps/api/core";
-import type { Canvas, CanvasNode, Config, Edge, Viewport } from "./types";
+import type { Canvas, CanvasNode, Config, Edge, Side, Viewport } from "./types";
+import { STEP } from "./constants";
 
 export type Mode = "normal" | "insert" | "connect" | "move" | "resize";
-export type Side = "top" | "right" | "bottom" | "left";
 
 let nodes = $state<CanvasNode[]>([]);
 let edges = $state<Edge[]>([]);
@@ -15,7 +15,6 @@ let connectFromSide = $state<Side | null>(null);
 let filePath = $state<string | null>(null);
 let config = $state<Config | null>(null);
 let saveTimeout: ReturnType<typeof setTimeout> | null = null;
-const GRID_STEP = 20;
 
 function generateId(): string {
   return crypto.randomUUID().replace(/-/g, "").slice(0, 16);
@@ -91,30 +90,24 @@ function removeNode(id: string) {
   debouncedSave();
 }
 
-function moveNode(id: string, dx: number, dy: number) {
+function withNode(id: string, fn: (node: CanvasNode) => void) {
   const node = nodes.find((n) => n.id === id);
-  if (node) {
-    node.x += dx;
-    node.y += dy;
-    debouncedSave();
-  }
+  if (node) { fn(node); debouncedSave(); }
+}
+
+function moveNode(id: string, dx: number, dy: number) {
+  withNode(id, (node) => { node.x += dx; node.y += dy; });
 }
 
 function resizeNode(id: string, dw: number, dh: number) {
-  const node = nodes.find((n) => n.id === id);
-  if (node) {
+  withNode(id, (node) => {
     node.width = Math.max(50, node.width + dw);
     node.height = Math.max(30, node.height + dh);
-    debouncedSave();
-  }
+  });
 }
 
 function setNodeColor(id: string, color: string) {
-  const node = nodes.find((n) => n.id === id);
-  if (node) {
-    node.color = color;
-    debouncedSave();
-  }
+  withNode(id, (node) => { node.color = color; });
 }
 
 function selectNode(id: string) {
@@ -190,13 +183,8 @@ function exitInsert() {
   mode = "normal";
 }
 
-function deselect() {
-  selectedNodeIds = [];
-  selectedEdgeId = null;
-}
-
 function snapViewport() {
-  const spacing = GRID_STEP * viewport.zoom;
+  const spacing = STEP * viewport.zoom;
   viewport.x = Math.round(viewport.x / spacing) * spacing;
   viewport.y = Math.round(viewport.y / spacing) * spacing;
 }
@@ -213,8 +201,8 @@ function pan(dx: number, dy: number) {
 }
 
 function panGrid(cellsX: number, cellsY: number) {
-  viewport.x += cellsX * GRID_STEP * viewport.zoom;
-  viewport.y += cellsY * GRID_STEP * viewport.zoom;
+  viewport.x += cellsX * STEP * viewport.zoom;
+  viewport.y += cellsY * STEP * viewport.zoom;
   snapViewport();
 }
 
@@ -308,7 +296,6 @@ export function getStore() {
     exitConnect,
     setConnectFromSide,
     addEdge,
-    deselect,
     centerOn,
     pan,
     panGrid,
