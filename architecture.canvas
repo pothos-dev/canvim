@@ -1,0 +1,274 @@
+{
+  "nodes": [
+    {
+      "id": "a1b2c3d4e5f60001",
+      "type": "group",
+      "x": -900,
+      "y": -200,
+      "width": 1800,
+      "height": 900,
+      "label": "SvelteKit Frontend (SPA)",
+      "color": "5"
+    },
+    {
+      "id": "a1b2c3d4e5f60002",
+      "type": "group",
+      "x": -900,
+      "y": 800,
+      "width": 1800,
+      "height": 500,
+      "label": "Tauri 2 Rust Backend",
+      "color": "2"
+    },
+    {
+      "id": "a1b2c3d4e5f60003",
+      "type": "group",
+      "x": -900,
+      "y": 1400,
+      "width": 1800,
+      "height": 300,
+      "label": "File System",
+      "color": "3"
+    },
+    {
+      "id": "a1b2c3d4e5f60010",
+      "type": "text",
+      "x": -200,
+      "y": -140,
+      "width": 400,
+      "height": 120,
+      "color": "5",
+      "text": "## +page.svelte\nApp entry point. Loads config, reads canvas file from CLI arg, initializes store."
+    },
+    {
+      "id": "a1b2c3d4e5f60020",
+      "type": "text",
+      "x": -500,
+      "y": 60,
+      "width": 500,
+      "height": 200,
+      "color": "5",
+      "text": "## canvas-store.svelte.ts\nReactive state store (Svelte 5 `$state` runes).\n\n**State:** nodes, edges, viewport, selection, mode\n**Methods:** addNode, moveNode, resizeNode, addEdge, pan, zoom\n**Auto-save:** 500ms debounced `invoke(\"save_canvas\")`"
+    },
+    {
+      "id": "a1b2c3d4e5f60030",
+      "type": "text",
+      "x": 100,
+      "y": 60,
+      "width": 500,
+      "height": 260,
+      "color": "6",
+      "text": "## Canvas.svelte\nMain canvas renderer + input handler.\n\n**Keyboard:** vim-like (hjkl pan, Shift+hjkl move, Ctrl+hjkl resize)\n**Mouse:** drag-to-move, drag-to-resize, wheel zoom\n**Modes:** Normal → Insert → Connect\n**Renders:** grid background, SVG edge layer, DOM node layer, crosshair, status bar"
+    },
+    {
+      "id": "a1b2c3d4e5f60040",
+      "type": "text",
+      "x": 700,
+      "y": 60,
+      "width": 340,
+      "height": 120,
+      "color": "1",
+      "text": "## Node.svelte\nRendered DOM nodes. Textarea in insert mode, Markdown preview in normal mode."
+    },
+    {
+      "id": "a1b2c3d4e5f60050",
+      "type": "text",
+      "x": 700,
+      "y": 230,
+      "width": 340,
+      "height": 100,
+      "color": "1",
+      "text": "## Edge.svelte\nSVG cubic bezier curves with arrows and labels. Auto-calculates anchor sides."
+    },
+    {
+      "id": "a1b2c3d4e5f60060",
+      "type": "text",
+      "x": -850,
+      "y": 60,
+      "width": 280,
+      "height": 140,
+      "color": "3",
+      "text": "## types.ts\nTypeScript interfaces matching JSON Canvas spec.\n\nTextNode, FileNode, LinkNode, GroupNode, Edge, Canvas, Config, Viewport"
+    },
+    {
+      "id": "a1b2c3d4e5f60065",
+      "type": "text",
+      "x": -850,
+      "y": 250,
+      "width": 280,
+      "height": 100,
+      "color": "3",
+      "text": "## tauri-mock.ts\nBrowser dev mock for Tauri API. Enables testing without desktop runtime."
+    },
+    {
+      "id": "a1b2c3d4e5f60070",
+      "type": "text",
+      "x": -200,
+      "y": 420,
+      "width": 400,
+      "height": 200,
+      "text": "## Tauri IPC Bridge\n`@tauri-apps/api/core.invoke()`\n\n```\nget_config() → Config\nget_file_path() → Option<String>\nread_canvas(path) → Canvas\nsave_canvas(path, data) → Result\n```"
+    },
+    {
+      "id": "a1b2c3d4e5f60080",
+      "type": "text",
+      "x": -500,
+      "y": 870,
+      "width": 450,
+      "height": 180,
+      "color": "2",
+      "text": "## lib.rs (Commands)\nTauri command handlers:\n- `get_file_path` — returns CLI arg\n- `get_config` — parses config.toml\n- `read_canvas` — reads + deserializes JSON\n- `save_canvas` — serializes + writes JSON"
+    },
+    {
+      "id": "a1b2c3d4e5f60090",
+      "type": "text",
+      "x": 50,
+      "y": 870,
+      "width": 400,
+      "height": 180,
+      "color": "2",
+      "text": "## lib.rs (Types)\nRust structs with serde (de)serialization:\n- `Canvas { nodes, edges }`\n- `Node { id, type, x, y, w, h, text, color, ... }`\n- `Edge { id, fromNode, toNode, label, ... }`\n- `Config { colors, ... }`"
+    },
+    {
+      "id": "a1b2c3d4e5f60095",
+      "type": "text",
+      "x": 550,
+      "y": 870,
+      "width": 300,
+      "height": 140,
+      "color": "2",
+      "text": "## main.rs\nEntry point. Daemonization on Linux (prevents duplicate windows). Calls `run()` from lib.rs."
+    },
+    {
+      "id": "a1b2c3d4e5f600a0",
+      "type": "text",
+      "x": -500,
+      "y": 1470,
+      "width": 350,
+      "height": 100,
+      "color": "3",
+      "text": "## ~/.config/canvim/config.toml\nUser configuration: color presets, custom settings."
+    },
+    {
+      "id": "a1b2c3d4e5f600b0",
+      "type": "text",
+      "x": 50,
+      "y": 1470,
+      "width": 350,
+      "height": 100,
+      "color": "3",
+      "text": "## *.canvas (JSON files)\nJSON Canvas spec: `{ nodes: [...], edges: [...] }`"
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1a2b3c4d5e60001",
+      "fromNode": "a1b2c3d4e5f60010",
+      "fromSide": "bottom",
+      "toNode": "a1b2c3d4e5f60020",
+      "toSide": "top",
+      "toEnd": "arrow",
+      "label": "init store"
+    },
+    {
+      "id": "e1a2b3c4d5e60002",
+      "fromNode": "a1b2c3d4e5f60010",
+      "fromSide": "bottom",
+      "toNode": "a1b2c3d4e5f60030",
+      "toSide": "top",
+      "toEnd": "arrow",
+      "label": "mounts"
+    },
+    {
+      "id": "e1a2b3c4d5e60003",
+      "fromNode": "a1b2c3d4e5f60020",
+      "fromSide": "right",
+      "toNode": "a1b2c3d4e5f60030",
+      "toSide": "left",
+      "toEnd": "arrow",
+      "fromEnd": "arrow",
+      "label": "reactive state"
+    },
+    {
+      "id": "e1a2b3c4d5e60004",
+      "fromNode": "a1b2c3d4e5f60030",
+      "fromSide": "right",
+      "toNode": "a1b2c3d4e5f60040",
+      "toSide": "left",
+      "toEnd": "arrow",
+      "label": "renders"
+    },
+    {
+      "id": "e1a2b3c4d5e60005",
+      "fromNode": "a1b2c3d4e5f60030",
+      "fromSide": "right",
+      "toNode": "a1b2c3d4e5f60050",
+      "toSide": "left",
+      "toEnd": "arrow",
+      "label": "renders"
+    },
+    {
+      "id": "e1a2b3c4d5e60006",
+      "fromNode": "a1b2c3d4e5f60060",
+      "fromSide": "right",
+      "toNode": "a1b2c3d4e5f60020",
+      "toSide": "left",
+      "toEnd": "arrow",
+      "label": "type defs"
+    },
+    {
+      "id": "e1a2b3c4d5e60007",
+      "fromNode": "a1b2c3d4e5f60020",
+      "fromSide": "bottom",
+      "toNode": "a1b2c3d4e5f60070",
+      "toSide": "top",
+      "toEnd": "arrow",
+      "label": "invoke()"
+    },
+    {
+      "id": "e1a2b3c4d5e60008",
+      "fromNode": "a1b2c3d4e5f60070",
+      "fromSide": "bottom",
+      "toNode": "a1b2c3d4e5f60080",
+      "toSide": "top",
+      "toEnd": "arrow",
+      "label": "IPC"
+    },
+    {
+      "id": "e1a2b3c4d5e60009",
+      "fromNode": "a1b2c3d4e5f60070",
+      "fromSide": "bottom",
+      "toNode": "a1b2c3d4e5f60090",
+      "toSide": "top",
+      "toEnd": "arrow",
+      "label": "IPC"
+    },
+    {
+      "id": "e1a2b3c4d5e6000a",
+      "fromNode": "a1b2c3d4e5f60080",
+      "fromSide": "bottom",
+      "toNode": "a1b2c3d4e5f600a0",
+      "toSide": "top",
+      "toEnd": "arrow",
+      "label": "reads"
+    },
+    {
+      "id": "e1a2b3c4d5e6000b",
+      "fromNode": "a1b2c3d4e5f60080",
+      "fromSide": "bottom",
+      "toNode": "a1b2c3d4e5f600b0",
+      "toSide": "top",
+      "toEnd": "arrow",
+      "label": "read/write"
+    },
+    {
+      "id": "e1a2b3c4d5e6000c",
+      "fromNode": "a1b2c3d4e5f60095",
+      "fromSide": "left",
+      "toNode": "a1b2c3d4e5f60080",
+      "toSide": "right",
+      "toEnd": "arrow",
+      "label": "calls run()"
+    }
+  ]
+}
