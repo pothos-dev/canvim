@@ -5,6 +5,35 @@ import type { getStore } from "$lib/canvas-store.svelte";
 vi.mock("@tauri-apps/api/core", () => ({
   invoke: vi.fn(async (cmd: string) => {
     if (cmd === "save_canvas") return;
+    if (cmd === "init") return {
+      config: {
+        colors: {
+          background: "#181825", node_background: "#1e1e1e", node_border: "#555555",
+          edge: "#585b70", text: "#cdd6f4", crosshair: "rgba(205,214,244,0.3)",
+          dot_grid: "rgba(205,214,244,0.08)", status_bar_bg: "#11111b",
+          status_bar_text: "#6c7086", node_font: "system-ui", node_font_size: 14,
+          red: "#fb464c", orange: "#e9973f", yellow: "#e0de71",
+          green: "#44cf6e", cyan: "#53dfdd", purple: "#a882ff",
+        },
+        keybindings: {
+          normal: {
+            pan_left: "h", pan_right: "l", pan_up: "k", pan_down: "j",
+            zoom_in: "+", zoom_out: "-", add_node: "a", select: "Enter",
+            insert: "i", delete: "d", deselect: "Escape", quit: "q",
+            enter_move: "m", enter_resize: "r", connect: "c",
+            toggle_select: "v", deselect_all: "V",
+            color_red: "1", color_orange: "2", color_yellow: "3", color_green: "4",
+            color_cyan: "5", color_purple: "6", color_clear: "0",
+            undo: "u", redo: "C-r",
+          },
+          move: { left: "h", right: "l", up: "k", down: "j", exit: "Escape" },
+          resize: { left: "h", right: "l", up: "k", down: "j", exit: "Escape" },
+          connect: { left: "h", right: "l", up: "k", down: "j", confirm: "Enter", exit: "Escape" },
+          insert: { exit: "Escape" },
+        },
+      },
+      file_path: null,
+    };
     if (cmd === "get_config") return {
       colors: {
         background: "#181825", node_background: "#1e1e1e", node_border: "#555555",
@@ -201,7 +230,7 @@ describe("canvas-store", () => {
       store.addNode(0, 0);
       const id = store.nodes[0].id;
       store.exitInsert();
-      store.deselect();
+      store.deselectAll();
       expect(store.selectedNodeId).toBeNull();
       store.selectNode(id);
       expect(store.selectedNodeId).toBe(id);
@@ -209,7 +238,7 @@ describe("canvas-store", () => {
 
     it("deselect clears selection", () => {
       store.addNode(0, 0);
-      store.deselect();
+      store.deselectAll();
       expect(store.selectedNodeId).toBeNull();
     });
   });
@@ -352,9 +381,9 @@ describe("canvas-store", () => {
     });
   });
 
-  describe("loadConfig", () => {
+  describe("init", () => {
     it("loads config from invoke", async () => {
-      await store.loadConfig();
+      await store.init();
       expect(store.config).toBeTruthy();
       expect(store.config!.colors.background).toBe("#181825");
       expect(store.config!.keybindings.normal.pan_left).toBe("h");
@@ -363,13 +392,13 @@ describe("canvas-store", () => {
 
   describe("resolveColor", () => {
     it("returns undefined for empty preset", async () => {
-      await store.loadConfig();
+      await store.init();
       expect(store.resolveColor("")).toBeUndefined();
       expect(store.resolveColor(undefined)).toBeUndefined();
     });
 
     it("maps preset numbers to config colors", async () => {
-      await store.loadConfig();
+      await store.init();
       expect(store.resolveColor("1")).toBe("#fb464c");
       expect(store.resolveColor("2")).toBe("#e9973f");
       expect(store.resolveColor("3")).toBe("#e0de71");
@@ -379,7 +408,7 @@ describe("canvas-store", () => {
     });
 
     it("returns unknown presets as-is", async () => {
-      await store.loadConfig();
+      await store.init();
       expect(store.resolveColor("#ff0000")).toBe("#ff0000");
     });
   });
