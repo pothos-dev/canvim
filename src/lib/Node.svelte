@@ -169,4 +169,15 @@
     background: rgba(255, 255, 255, 0.06);
   }
 
+  .node-content :global(h1) { font-size: 1.4em; margin: 0 0 0.4em; }
+  .node-content :global(h2) { font-size: 1.2em; margin: 0 0 0.4em; }
+  .node-content :global(h3) { font-size: 1.1em; margin: 0 0 0.4em; }
+  .node-content :global(h4),
+  .node-content :global(h5),
+  .node-content :global(h6) { font-size: 1em; margin: 0 0 0.4em; }
+  .node-content :global(a) { color: inherit; text-decoration: underline; }
+  .node-content :global(blockquote) { font-style: italic; opacity: 0.8; margin: 0.4em 0; padding-left: 0.8em; border-left: 2px solid currentColor; }
+  .node-content :global(del) { opacity: 0.5; }
+  .node-content :global(hr) { opacity: 0.4; border: none; border-top: 1px solid currentColor; }
+
 </style>

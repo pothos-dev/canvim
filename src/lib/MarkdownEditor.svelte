@@ -59,20 +59,20 @@
   });
 
   const highlightStyle = HighlightStyle.define([
-    { tag: tags.heading1, fontWeight: "bold", fontSize: "1.4em", color: "#7aa2f7" },
-    { tag: tags.heading2, fontWeight: "bold", fontSize: "1.2em", color: "#7aa2f7" },
-    { tag: tags.heading3, fontWeight: "bold", fontSize: "1.1em", color: "#7aa2f7" },
-    { tag: [tags.heading4, tags.heading5, tags.heading6], fontWeight: "bold", color: "#7aa2f7" },
-    { tag: tags.emphasis, fontStyle: "italic", color: "#bb9af7" },
-    { tag: tags.strong, fontWeight: "bold", color: "#ff9e64" },
-    { tag: tags.strikethrough, textDecoration: "line-through", color: "#565f89" },
-    { tag: tags.link, color: "#73daca", textDecoration: "underline" },
-    { tag: tags.url, color: "#73daca" },
-    { tag: tags.monospace, color: "#9ece6a", fontFamily: "monospace", fontSize: "0.9em" },
-    { tag: [tags.processingInstruction, tags.inserted], color: "#565f89" }, // markdown markers like **, ##
-    { tag: tags.contentSeparator, color: "#565f89" }, // ---
-    { tag: tags.quote, color: "#9aa5ce", fontStyle: "italic" },
-    { tag: tags.list, color: "#e0af68" },
+    { tag: tags.heading1, fontWeight: "bold", fontSize: "1.4em" },
+    { tag: tags.heading2, fontWeight: "bold", fontSize: "1.2em" },
+    { tag: tags.heading3, fontWeight: "bold", fontSize: "1.1em" },
+    { tag: [tags.heading4, tags.heading5, tags.heading6], fontWeight: "bold" },
+    { tag: tags.emphasis, fontStyle: "italic" },
+    { tag: tags.strong, fontWeight: "bold" },
+    { tag: tags.strikethrough, textDecoration: "line-through", opacity: "0.5" },
+    { tag: tags.link, textDecoration: "underline" },
+    { tag: tags.url, opacity: "0.7", textDecoration: "underline" },
+    { tag: tags.monospace, fontFamily: "monospace", fontSize: "0.9em" },
+    { tag: [tags.processingInstruction, tags.inserted], opacity: "0.4" }, // markdown markers like **, ##
+    { tag: tags.contentSeparator, opacity: "0.4" }, // ---
+    { tag: tags.quote, fontStyle: "italic", opacity: "0.8" },
+    { tag: tags.list, opacity: "0.7" },
   ]);
 
   const escapeKeymap = keymap.of([
