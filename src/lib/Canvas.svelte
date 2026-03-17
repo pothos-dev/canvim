@@ -230,6 +230,7 @@
 
   function handleWheel(e: WheelEvent) {
     e.preventDefault();
+    store.snapAll();
     if (e.ctrlKey) {
       const delta = e.deltaY > 0 ? -ZOOM_STEP : ZOOM_STEP;
       store.zoom(delta);
@@ -291,6 +292,7 @@
     e.stopPropagation();
 
     didDrag = false;
+    store.snapAll();
     store.pushSnapshot();
     const resizeEdge = getResizeEdge(node, canvas.x, canvas.y);
     const type: DragType = resizeEdge ? "resize" : "move";
@@ -446,11 +448,11 @@
       radial-gradient(circle, {colors?.dot_grid ?? 'rgba(205,214,244,0.18)'} 2px, transparent 2px),
       radial-gradient(circle, {colors?.dot_grid ?? 'rgba(205,214,244,0.08)'} 1px, transparent 1px);
     background-position:
-      calc(50vw + {store.viewport.x % (5 * STEP * store.viewport.zoom)}px) calc(50vh + {store.viewport.y % (5 * STEP * store.viewport.zoom)}px),
-      calc(50vw + {store.viewport.x % (STEP * store.viewport.zoom)}px) calc(50vh + {store.viewport.y % (STEP * store.viewport.zoom)}px);
+      calc(50vw + {store.viewportDisplay.x % (5 * STEP * store.viewportDisplay.zoom)}px) calc(50vh + {store.viewportDisplay.y % (5 * STEP * store.viewportDisplay.zoom)}px),
+      calc(50vw + {store.viewportDisplay.x % (STEP * store.viewportDisplay.zoom)}px) calc(50vh + {store.viewportDisplay.y % (STEP * store.viewportDisplay.zoom)}px);
     background-size:
-      {5 * STEP * store.viewport.zoom}px {5 * STEP * store.viewport.zoom}px,
-      {STEP * store.viewport.zoom}px {STEP * store.viewport.zoom}px;
+      {5 * STEP * store.viewportDisplay.zoom}px {5 * STEP * store.viewportDisplay.zoom}px,
+      {STEP * store.viewportDisplay.zoom}px {STEP * store.viewportDisplay.zoom}px;
   "
 >
   <!-- Crosshair -->
@@ -462,7 +464,7 @@
   <!-- Canvas plane -->
   <div
     class="canvas-plane"
-    style="transform: translate(calc(50vw + {store.viewport.x}px), calc(50vh + {store.viewport.y}px)) scale({store.viewport.zoom});"
+    style="transform: translate(calc(50vw + {store.viewportDisplay.x}px), calc(50vh + {store.viewportDisplay.y}px)) scale({store.viewportDisplay.zoom});"
   >
     <!-- SVG layer for edges -->
     <svg class="edge-layer" viewBox="-10000 -10000 20000 20000">
@@ -502,6 +504,7 @@
     {#each store.nodes.filter(n => n.type === "group") as node (node.id)}
       <NodeComponent
         {node}
+        displayPos={store.nodeDisplay.get(node.id)}
         editing={store.selectedNodeId === node.id && store.mode === "insert"}
         selected={store.selectedNodeIds.includes(node.id) || currentMatchId === node.id}
         hovered={nodeUnderCursor?.id === node.id && store.mode === "normal"}
@@ -519,6 +522,7 @@
     {#each store.nodes.filter(n => n.type !== "group") as node (node.id)}
       <NodeComponent
         {node}
+        displayPos={store.nodeDisplay.get(node.id)}
         editing={store.selectedNodeId === node.id && store.mode === "insert"}
         selected={store.selectedNodeIds.includes(node.id) || currentMatchId === node.id}
         hovered={nodeUnderCursor?.id === node.id && store.mode === "normal"}

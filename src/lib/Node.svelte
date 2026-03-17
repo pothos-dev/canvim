@@ -6,6 +6,7 @@
 
   interface Props {
     node: CanvasNode;
+    displayPos?: { x: number; y: number; width: number; height: number };
     editing: boolean;
     selected?: boolean;
     hovered: boolean;
@@ -20,7 +21,7 @@
     resolveColor: (preset: string | undefined) => string | undefined;
   }
 
-  let { node, editing, selected = false, hovered, connectSource = false, connectTarget = false, dimmed = false, searchQuery = "", onSelect, onUpdate, onExitInsert, colors, resolveColor }: Props = $props();
+  let { node, displayPos, editing, selected = false, hovered, connectSource = false, connectTarget = false, dimmed = false, searchQuery = "", onSelect, onUpdate, onExitInsert, colors, resolveColor }: Props = $props();
   let editText = $state("");
   let wasEditing = false;
 
@@ -80,10 +81,10 @@
   class:dimmed
   class:group={node.type === "group"}
   style="
-    left: {node.x}px;
-    top: {node.y}px;
-    width: {node.width}px;
-    height: {node.height}px;
+    left: {displayPos?.x ?? node.x}px;
+    top: {displayPos?.y ?? node.y}px;
+    width: {displayPos?.width ?? node.width}px;
+    height: {displayPos?.height ?? node.height}px;
     background: {node.type === 'group' ? 'rgba(255,255,255,0.03)' : bgColor};
     color: {textColor};
     font-family: {fontFamily};

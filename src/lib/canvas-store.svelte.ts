@@ -1,6 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import type { Canvas, CanvasNode, Config, Edge, Side, Viewport } from "./types";
 import { STEP } from "./constants";
+import { initAnimation, kick, snapAll, removeNode as animRemoveNode, getViewportDisplay, getNodeDisplay } from "./animate.svelte";
 
 export type Mode = "normal" | "insert" | "connect" | "move" | "resize" | "search";
 
@@ -50,6 +51,7 @@ function restoreSnapshot(snapshot: Canvas) {
   connectFromNodeId = null;
   connectFromSide = null;
   implicitSelect = false;
+  snapAll();
   save();
 }
 
@@ -98,6 +100,8 @@ async function init() {
   config = data.config;
   if (data.file_path) {
     await load(data.file_path);
+  } else {
+    initAnimation(viewport, () => nodes);
   }
 }
 
@@ -106,6 +110,7 @@ async function load(path: string) {
   const data = (await invoke("read_canvas", { path })) as Canvas;
   nodes = data.nodes;
   edges = data.edges;
+  initAnimation(viewport, () => nodes);
 }
 
 function addNode(x: number, y: number): string {
@@ -143,6 +148,7 @@ function removeNode(id: string) {
   edges.length = 0;
   edges.push(...remainingEdges);
   selectedNodeIds = selectedNodeIds.filter(nid => nid !== id);
+  animRemoveNode(id);
   debouncedSave();
 }
 
@@ -153,6 +159,7 @@ function withNode(id: string, fn: (node: CanvasNode) => void) {
 
 function moveNode(id: string, dx: number, dy: number) {
   withNode(id, (node) => { node.x += dx; node.y += dy; });
+  kick();
 }
 
 function resizeNode(id: string, dw: number, dh: number) {
@@ -160,6 +167,7 @@ function resizeNode(id: string, dw: number, dh: number) {
     node.width = Math.max(50, node.width + dw);
     node.height = Math.max(30, node.height + dh);
   });
+  kick();
 }
 
 function setNodeSize(id: string, width: number, height: number) {
@@ -167,6 +175,7 @@ function setNodeSize(id: string, width: number, height: number) {
     node.width = Math.max(50, width);
     node.height = Math.max(30, height);
   });
+  kick();
 }
 
 function setNodeColor(id: string, color: string) {
@@ -288,6 +297,7 @@ function paste(centerX: number, centerY: number) {
   edges.push(...clonedEdges);
   selectedNodeIds = clonedNodes.map(n => n.id);
   mode = "normal";
+  snapAll();
   debouncedSave();
 }
 
@@ -342,22 +352,26 @@ function centerOn(x: number, y: number) {
   viewport.x = -x * viewport.zoom;
   viewport.y = -y * viewport.zoom;
   snapViewport();
+  kick();
 }
 
 function pan(dx: number, dy: number) {
   viewport.x += dx;
   viewport.y += dy;
+  snapAll();
 }
 
 function panGrid(cellsX: number, cellsY: number) {
   viewport.x += cellsX * STEP * viewport.zoom;
   viewport.y += cellsY * STEP * viewport.zoom;
   snapViewport();
+  kick();
 }
 
 function zoom(delta: number) {
   viewport.zoom = Math.max(0.1, Math.min(5, viewport.zoom + delta));
   snapViewport();
+  kick();
 }
 
 function enterConnect(nodeId: string) {
@@ -480,6 +494,9 @@ export function getStore() {
     get nodes() { return nodes; },
     get edges() { return edges; },
     get viewport() { return viewport; },
+    get viewportDisplay() { return getViewportDisplay(); },
+    get nodeDisplay() { return getNodeDisplay(); },
+    snapAll,
     get selectedNodeId() { return selectedNodeIds.length === 1 ? selectedNodeIds[0] : null; },
     get selectedNodeIds() { return selectedNodeIds; },
     get hasMultiSelect() { return selectedNodeIds.length > 1; },
