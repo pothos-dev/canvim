@@ -239,8 +239,10 @@
       if (cmd.available(ctx)) {
         e.preventDefault();
 
-        // If this is a new key press (not a browser-delivered repeat), set up manual repeat
-        if (!e.repeat && heldKey !== e.key) {
+        // Ignore native repeat events — manual timer handles repetition
+        if (e.repeat) break;
+
+        if (heldKey !== e.key) {
           clearRepeat();
           cmd.execute(ctx);
           heldKey = e.key;
@@ -250,10 +252,6 @@
               executeKey(heldKey!, heldModifiers.ctrl, heldModifiers.shift);
             }, KEY_REPEAT_INTERVAL);
           }, KEY_REPEAT_DELAY);
-        } else if (e.repeat) {
-          // Browser did deliver a repeat — execute it and rely on native repeat
-          clearRepeat();
-          cmd.execute(ctx);
         }
         return;
       }
