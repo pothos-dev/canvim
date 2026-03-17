@@ -1,11 +1,64 @@
 <script lang="ts">
+  import "highlight.js/styles/github-dark-dimmed.css";
   import { marked } from "marked";
+  import { markedHighlight } from "marked-highlight";
+  import hljs from "highlight.js/lib/core";
+  import javascript from "highlight.js/lib/languages/javascript";
+  import typescript from "highlight.js/lib/languages/typescript";
+  import python from "highlight.js/lib/languages/python";
+  import bash from "highlight.js/lib/languages/bash";
+  import json from "highlight.js/lib/languages/json";
+  import css from "highlight.js/lib/languages/css";
+  import xml from "highlight.js/lib/languages/xml";
+  import rust from "highlight.js/lib/languages/rust";
+  import go from "highlight.js/lib/languages/go";
+  import yaml from "highlight.js/lib/languages/yaml";
+  import markdown from "highlight.js/lib/languages/markdown";
+  import sql from "highlight.js/lib/languages/sql";
+  import c from "highlight.js/lib/languages/c";
+  import cpp from "highlight.js/lib/languages/cpp";
+  import java from "highlight.js/lib/languages/java";
   import type { CanvasNode, ConfigColors } from "./types";
+
+  hljs.registerLanguage("javascript", javascript);
+  hljs.registerLanguage("js", javascript);
+  hljs.registerLanguage("typescript", typescript);
+  hljs.registerLanguage("ts", typescript);
+  hljs.registerLanguage("python", python);
+  hljs.registerLanguage("py", python);
+  hljs.registerLanguage("bash", bash);
+  hljs.registerLanguage("sh", bash);
+  hljs.registerLanguage("json", json);
+  hljs.registerLanguage("css", css);
+  hljs.registerLanguage("html", xml);
+  hljs.registerLanguage("xml", xml);
+  hljs.registerLanguage("rust", rust);
+  hljs.registerLanguage("rs", rust);
+  hljs.registerLanguage("go", go);
+  hljs.registerLanguage("yaml", yaml);
+  hljs.registerLanguage("yml", yaml);
+  hljs.registerLanguage("markdown", markdown);
+  hljs.registerLanguage("md", markdown);
+  hljs.registerLanguage("sql", sql);
+  hljs.registerLanguage("c", c);
+  hljs.registerLanguage("cpp", cpp);
+  hljs.registerLanguage("java", java);
+
+  marked.use(markedHighlight({
+    highlight(code, lang) {
+      if (lang && hljs.getLanguage(lang)) {
+        return hljs.highlight(code, { language: lang }).value;
+      }
+      return hljs.highlightAuto(code).value;
+    },
+  }));
 
   interface Props {
     node: CanvasNode;
     editing: boolean;
     hovered: boolean;
+    connectSource?: boolean;
+    connectTarget?: boolean;
     onSelect: (id: string) => void;
     onUpdate: (id: string, text: string) => void;
     onExitInsert: () => void;
@@ -13,7 +66,7 @@
     resolveColor: (preset: string | undefined) => string | undefined;
   }
 
-  let { node, editing, hovered, onSelect, onUpdate, onExitInsert, colors, resolveColor }: Props = $props();
+  let { node, editing, hovered, connectSource = false, connectTarget = false, onSelect, onUpdate, onExitInsert, colors, resolveColor }: Props = $props();
   let textareaEl: HTMLTextAreaElement | undefined = $state();
   let editText = $state("");
   let wasEditing = false;
@@ -60,6 +113,8 @@
   class="node"
   class:editing
   class:hovered
+  class:connect-source={connectSource}
+  class:connect-target={connectTarget}
   class:group={node.type === "group"}
   style="
     left: {node.x}px;
@@ -99,7 +154,7 @@
     border: 2px solid;
     border-radius: 8px;
     overflow: hidden;
-    cursor: pointer;
+    cursor: inherit;
     box-sizing: border-box;
     opacity: 0.7;
     transition: opacity 0.15s ease, box-shadow 0.2s ease;
@@ -113,6 +168,16 @@
   .node.editing {
     opacity: 1;
     box-shadow: 0 6px 24px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.15);
+  }
+
+  .node.connect-source {
+    opacity: 1;
+    box-shadow: 0 0 12px rgba(247, 118, 142, 0.5), 0 0 0 2px #f7768e;
+  }
+
+  .node.connect-target {
+    opacity: 1;
+    box-shadow: 0 0 16px rgba(247, 118, 142, 0.6), 0 0 0 2px #f7768e;
   }
 
   .node.group {
@@ -134,6 +199,23 @@
 
   .node-content :global(p:last-child) {
     margin-bottom: 0;
+  }
+
+  .node-content :global(pre) {
+    margin: 0.4em 0;
+    border-radius: 4px;
+    overflow-x: auto;
+  }
+
+  .node-content :global(code) {
+    font-family: monospace;
+    font-size: 0.9em;
+  }
+
+  .node-content :global(:not(pre) > code) {
+    padding: 0.15em 0.3em;
+    border-radius: 3px;
+    background: rgba(255, 255, 255, 0.06);
   }
 
   .node-editor {

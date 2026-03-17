@@ -1,13 +1,16 @@
 import { invoke } from "@tauri-apps/api/core";
 import type { Canvas, CanvasNode, Config, Edge, Viewport } from "./types";
 
-export type Mode = "normal" | "insert";
+export type Mode = "normal" | "insert" | "connect";
+export type Side = "top" | "right" | "bottom" | "left";
 
 let nodes = $state<CanvasNode[]>([]);
 let edges = $state<Edge[]>([]);
 let viewport = $state<Viewport>({ x: 0, y: 0, zoom: 1 });
 let selectedNodeId = $state<string | null>(null);
 let mode = $state<Mode>("normal");
+let connectFromNodeId = $state<string | null>(null);
+let connectFromSide = $state<Side | null>(null);
 let filePath = $state<string | null>(null);
 let config = $state<Config | null>(null);
 let saveTimeout: ReturnType<typeof setTimeout> | null = null;
@@ -138,6 +141,36 @@ function zoom(delta: number) {
   viewport.zoom = Math.max(0.1, Math.min(5, viewport.zoom + delta));
 }
 
+function enterConnect(nodeId: string) {
+  connectFromNodeId = nodeId;
+  connectFromSide = null;
+  mode = "connect";
+}
+
+function exitConnect() {
+  connectFromNodeId = null;
+  connectFromSide = null;
+  mode = "normal";
+}
+
+function setConnectFromSide(side: Side) {
+  connectFromSide = side;
+}
+
+function addEdge(fromId: string, fromSide: Side, toId: string, toSide: Side) {
+  const id = generateId();
+  const edge: Edge = {
+    id,
+    fromNode: fromId,
+    fromSide,
+    toNode: toId,
+    toSide,
+    toEnd: "arrow",
+  };
+  edges.push(edge);
+  debouncedSave();
+}
+
 /** Map canvas spec color preset "1"-"6" to config color values */
 function resolveColor(preset: string | undefined): string | undefined {
   if (!preset || !config) return undefined;
@@ -159,6 +192,8 @@ export function getStore() {
     get viewport() { return viewport; },
     get selectedNodeId() { return selectedNodeId; },
     get mode() { return mode; },
+    get connectFromNodeId() { return connectFromNodeId; },
+    get connectFromSide() { return connectFromSide; },
     get filePath() { return filePath; },
     get config() { return config; },
     loadConfig,
@@ -174,6 +209,10 @@ export function getStore() {
     selectNode,
     enterInsert,
     exitInsert,
+    enterConnect,
+    exitConnect,
+    setConnectFromSide,
+    addEdge,
     deselect,
     pan,
     zoom,
