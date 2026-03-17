@@ -122,6 +122,7 @@ export interface NormalKeybindings {
   paste: string;
   undo: string;
   redo: string;
+  search: string;
 }
 
 export interface DirectionalKeybindings {

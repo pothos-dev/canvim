@@ -11,6 +11,8 @@
     hovered: boolean;
     connectSource?: boolean;
     connectTarget?: boolean;
+    dimmed?: boolean;
+    searchQuery?: string;
     onSelect: (id: string) => void;
     onUpdate: (id: string, text: string) => void;
     onExitInsert: () => void;
@@ -18,7 +20,7 @@
     resolveColor: (preset: string | undefined) => string | undefined;
   }
 
-  let { node, editing, selected = false, hovered, connectSource = false, connectTarget = false, onSelect, onUpdate, onExitInsert, colors, resolveColor }: Props = $props();
+  let { node, editing, selected = false, hovered, connectSource = false, connectTarget = false, dimmed = false, searchQuery = "", onSelect, onUpdate, onExitInsert, colors, resolveColor }: Props = $props();
   let editText = $state("");
   let wasEditing = false;
 
@@ -40,8 +42,22 @@
     return "";
   }
 
+  function highlightSearchMatches(html: string, query: string): string {
+    if (!query) return html;
+    // Replace only in text content (outside HTML tags)
+    const escaped = query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const re = new RegExp(`(${escaped})`, "gi");
+    // Split on tags, only replace in non-tag segments
+    return html.replace(/(<[^>]*>)|([^<]+)/g, (match, tag, text) => {
+      if (tag) return tag;
+      return text.replace(re, '<mark class="search-match">$1</mark>');
+    });
+  }
+
   function getRenderedHtml(): string {
-    return marked.parse(getDisplayText(), { async: false }) as string;
+    let html = marked.parse(getDisplayText(), { async: false }) as string;
+    if (searchQuery) html = highlightSearchMatches(html, searchQuery);
+    return html;
   }
 
   const nodeColor = $derived(resolveColor(node.color));
@@ -61,6 +77,7 @@
   class:hovered
   class:connect-source={connectSource}
   class:connect-target={connectTarget}
+  class:dimmed
   class:group={node.type === "group"}
   style="
     left: {node.x}px;
@@ -131,6 +148,10 @@
     box-shadow: 0 0 16px rgba(247, 118, 142, 0.6), 0 0 0 2px #f7768e;
   }
 
+  .node.dimmed {
+    opacity: 0.15;
+  }
+
   .node.group {
     border-style: dashed;
   }
@@ -179,5 +200,11 @@
   .node-content :global(blockquote) { font-style: italic; opacity: 0.8; margin: 0.4em 0; padding-left: 0.8em; border-left: 2px solid currentColor; }
   .node-content :global(del) { opacity: 0.5; }
   .node-content :global(hr) { opacity: 0.4; border: none; border-top: 1px solid currentColor; }
+
+  .node-content :global(mark.search-match) {
+    background: rgba(230, 180, 50, 0.4);
+    color: inherit;
+    border-radius: 2px;
+  }
 
 </style>

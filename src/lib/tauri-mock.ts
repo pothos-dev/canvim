@@ -55,6 +55,7 @@ const DEFAULT_CONFIG: Config = {
       paste: "p",
       undo: "u",
       redo: "C-r",
+      search: "/",
     },
     move: { left: "h", right: "l", up: "k", down: "j", exit: "Escape" },
     resize: { left: "h", right: "l", up: "k", down: "j", exit: "Escape" },

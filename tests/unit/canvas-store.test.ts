@@ -24,7 +24,7 @@ vi.mock("@tauri-apps/api/core", () => ({
             toggle_select: "v", deselect_all: "V",
             color_red: "1", color_orange: "2", color_yellow: "3", color_green: "4",
             color_cyan: "5", color_purple: "6", color_clear: "0",
-            undo: "u", redo: "C-r",
+            undo: "u", redo: "C-r", search: "/",
           },
           move: { left: "h", right: "l", up: "k", down: "j", exit: "Escape" },
           resize: { left: "h", right: "l", up: "k", down: "j", exit: "Escape" },

@@ -151,7 +151,7 @@
 
   function handleKeydown(e: KeyboardEvent) {
     // Prevent browser defaults on Ctrl+key combos we handle
-    if (e.ctrlKey && (e.key === "=" || e.key === "+" || e.key === "-" || e.key === "0" || e.key === "r" || e.key === "c" || e.key === "v")) {
+    if (e.ctrlKey && (e.key === "=" || e.key === "+" || e.key === "-" || e.key === "0" || e.key === "r" || e.key === "c" || e.key === "v" || e.key === "f")) {
       e.preventDefault();
     }
 
@@ -237,7 +237,7 @@
   }
 
   function handleMouseDown(e: MouseEvent) {
-    if (store.mode === "insert" || store.mode === "connect" || store.mode === "move" || store.mode === "resize") return;
+    if (store.mode === "insert" || store.mode === "connect" || store.mode === "move" || store.mode === "resize" || store.mode === "search") return;
     if (e.button !== 0) return;
 
     const canvas = screenToCanvas(e.clientX, e.clientY);
@@ -340,16 +340,45 @@
   }
 
   const MODE_LABELS: Record<string, string> = {
-    normal: "NORMAL", insert: "INSERT", connect: "CONNECT", move: "MOVE", resize: "RESIZE",
+    normal: "NORMAL", insert: "INSERT", connect: "CONNECT", move: "MOVE", resize: "RESIZE", search: "SEARCH",
   };
   const MODE_COLORS: Record<string, string> = {
-    normal: "#7aa2f7", insert: "#9ece6a", connect: "#f7768e", move: "#e0de71", resize: "#e9973f",
+    normal: "#7aa2f7", insert: "#9ece6a", connect: "#f7768e", move: "#e0de71", resize: "#e9973f", search: "#bb9af7",
   };
   const modeLabel = $derived(MODE_LABELS[store.mode] ?? "NORMAL");
   const modeColor = $derived(MODE_COLORS[store.mode] ?? "#7aa2f7");
   const colors = $derived(store.config?.colors);
 
   let containerEl: HTMLDivElement | undefined = $state();
+  let searchInputEl: HTMLInputElement | undefined = $state();
+
+  // Derive search-related values for Node props
+  const isSearchMode = $derived(store.mode === "search");
+  const searchMatchSet = $derived(new Set(store.searchMatchIds));
+  const currentMatchId = $derived(
+    store.searchMatchIds.length > 0 ? store.searchMatchIds[store.searchCurrentIndex] : null
+  );
+
+  // Focus search input when entering search mode
+  $effect(() => {
+    if (isSearchMode && !store.searchConfirmed) {
+      requestAnimationFrame(() => searchInputEl?.focus());
+    }
+  });
+
+  function handleSearchKeydown(e: KeyboardEvent) {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      store.confirmSearch();
+    } else if (e.key === "Escape") {
+      e.preventDefault();
+      store.exitSearch();
+    } else if (e.key === "Tab") {
+      e.preventDefault();
+      if (e.shiftKey) store.searchPrev();
+      else store.searchNext();
+    }
+  }
 
   onMount(() => {
     containerEl?.focus();
@@ -431,10 +460,12 @@
       <NodeComponent
         {node}
         editing={store.selectedNodeId === node.id && store.mode === "insert"}
-        selected={store.selectedNodeIds.includes(node.id)}
+        selected={store.selectedNodeIds.includes(node.id) || currentMatchId === node.id}
         hovered={nodeUnderCursor?.id === node.id && store.mode === "normal"}
         connectSource={store.mode === "connect" && store.connectFromNodeId === node.id}
         connectTarget={store.mode === "connect" && nodeUnderCursor?.id === node.id && node.id !== store.connectFromNodeId}
+        dimmed={isSearchMode && store.searchQuery.length > 0 && !searchMatchSet.has(node.id)}
+        searchQuery={isSearchMode ? store.searchQuery : ""}
         onSelect={handleNodeClick}
         onUpdate={store.updateNode}
         onExitInsert={() => store.exitInsert()}
@@ -446,10 +477,12 @@
       <NodeComponent
         {node}
         editing={store.selectedNodeId === node.id && store.mode === "insert"}
-        selected={store.selectedNodeIds.includes(node.id)}
+        selected={store.selectedNodeIds.includes(node.id) || currentMatchId === node.id}
         hovered={nodeUnderCursor?.id === node.id && store.mode === "normal"}
         connectSource={store.mode === "connect" && store.connectFromNodeId === node.id}
         connectTarget={store.mode === "connect" && nodeUnderCursor?.id === node.id && node.id !== store.connectFromNodeId}
+        dimmed={isSearchMode && store.searchQuery.length > 0 && !searchMatchSet.has(node.id)}
+        searchQuery={isSearchMode ? store.searchQuery : ""}
         onSelect={handleNodeClick}
         onUpdate={store.updateNode}
         onExitInsert={() => store.exitInsert()}
@@ -480,6 +513,41 @@
       {/if}
     {/if}
   </div>
+
+  <!-- Search bar -->
+  {#if store.mode === "search"}
+    <div class="search-bar" style="background: {colors?.status_bar_bg ?? '#11111b'}; color: {colors?.text ?? '#cdd6f4'};">
+      <span class="search-prefix">/</span>
+      {#if store.searchConfirmed}
+        <span class="search-query">{store.searchQuery}</span>
+      {:else}
+        <input
+          bind:this={searchInputEl}
+          class="search-input"
+          type="text"
+          value={store.searchQuery}
+          oninput={(e) => store.setSearchQuery(e.currentTarget.value)}
+          onkeydown={handleSearchKeydown}
+          placeholder="search..."
+          style="color: {colors?.text ?? '#cdd6f4'};"
+        />
+      {/if}
+      <span class="search-count">
+        {#if store.searchQuery.length === 0}
+          type to search
+        {:else if store.searchMatchIds.length === 0}
+          no matches
+        {:else}
+          {store.searchCurrentIndex + 1}/{store.searchMatchIds.length}
+        {/if}
+      </span>
+      {#if store.searchConfirmed}
+        <span class="search-hint">n/N:navigate Esc:close</span>
+      {:else}
+        <span class="search-hint">Tab/S-Tab:cycle Enter:confirm Esc:cancel</span>
+      {/if}
+    </div>
+  {/if}
 
   <!-- Status bar -->
   <div class="status-bar" style="background: {colors?.status_bar_bg ?? '#11111b'}; color: {colors?.status_bar_text ?? '#6c7086'};">
@@ -605,6 +673,54 @@
     position: absolute;
     transform: translate(-50%, -50%);
     z-index: 50;
+  }
+
+  .search-bar {
+    position: fixed;
+    bottom: 28px;
+    left: 0;
+    right: 0;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0 12px;
+    font-size: 14px;
+    font-family: monospace;
+    z-index: 200;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
+  .search-prefix {
+    opacity: 0.5;
+    font-weight: bold;
+  }
+
+  .search-input {
+    background: transparent;
+    border: none;
+    outline: none;
+    font-family: monospace;
+    font-size: 14px;
+    flex: 1;
+    min-width: 0;
+  }
+
+  .search-query {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .search-count {
+    opacity: 0.6;
+    font-size: 12px;
+    white-space: nowrap;
+  }
+
+  .search-hint {
+    opacity: 0.4;
+    font-size: 11px;
+    white-space: nowrap;
   }
 
   .edge-label-input {

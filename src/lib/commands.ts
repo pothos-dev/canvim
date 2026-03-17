@@ -347,6 +347,20 @@ export const commands: Command[] = [
   { id: "connect_exit", mode: "connect", label: "cancel", configKey: "connect.exit", available: always,
     execute: (ctx) => ctx.store.exitConnect() },
 
+  // Search
+  { id: "search", mode: "normal", label: "search", configKey: "normal.search", available: always,
+    execute: (ctx) => ctx.store.enterSearch() },
+  { id: "search_ctrlf", mode: "normal", label: "search", configKey: "normal.search", hidden: true,
+    available: always, execute: (ctx) => ctx.store.enterSearch() },
+
+  // === SEARCH MODE (navigation phase — after Enter confirms query) ===
+  { id: "search_next", mode: "search", label: "next", configKey: "normal.pan_down", hidden: true,
+    available: always, execute: (ctx) => ctx.store.searchNext() },
+  { id: "search_prev", mode: "search", label: "prev", configKey: "normal.pan_up", hidden: true,
+    available: always, execute: (ctx) => ctx.store.searchPrev() },
+  { id: "search_exit", mode: "search", label: "exit", configKey: "normal.deselect", hidden: true,
+    available: always, execute: (ctx) => ctx.store.exitSearch() },
+
   // === INSERT MODE ===
   { id: "insert_exit", mode: "insert", label: "exit", configKey: "insert.exit", available: always,
     execute: (ctx) => {
@@ -377,6 +391,9 @@ export function buildKeyMap(config: Config): Map<string, Command[]> {
     "zoom_in_eq": "=",
     "yank_ctrlc": "C-c",
     "paste_ctrlv": "C-v",
+    "search_ctrlf": "C-f",
+    "search_next": "n",
+    "search_prev": "N",
   };
 
   for (const cmd of commands) {
@@ -431,6 +448,8 @@ function isAvailableFromSnapshot(cmd: Command, snap: HintSnapshot): boolean {
     case "color_green": case "color_cyan": case "color_purple":
     case "color_clear":
       return snap.hasNode || snap.hasEdge || snap.selectedCount > 0;
+    case "search":
+      return true;
     case "yank":
       return hasNodeOrSelected;
     case "paste":

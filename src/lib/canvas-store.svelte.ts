@@ -2,7 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 import type { Canvas, CanvasNode, Config, Edge, Side, Viewport } from "./types";
 import { STEP } from "./constants";
 
-export type Mode = "normal" | "insert" | "connect" | "move" | "resize";
+export type Mode = "normal" | "insert" | "connect" | "move" | "resize" | "search";
 
 let nodes = $state<CanvasNode[]>([]);
 let edges = $state<Edge[]>([]);
@@ -17,6 +17,12 @@ let filePath = $state<string | null>(null);
 let config = $state<Config | null>(null);
 let clipboard: { nodes: CanvasNode[]; edges: Edge[] } | null = null;
 let saveTimeout: ReturnType<typeof setTimeout> | null = null;
+
+// Search state
+let searchQuery = $state("");
+let searchMatchIds = $state<string[]>([]);
+let searchCurrentIndex = $state(0);
+let searchConfirmed = $state(false);
 
 const MAX_HISTORY = 100;
 let history: Canvas[] = [];
@@ -365,6 +371,76 @@ function addEdge(fromId: string, fromSide: Side, toId: string, toSide: Side) {
   debouncedSave();
 }
 
+// --- Search ---
+
+function getNodeText(node: CanvasNode): string {
+  if (node.type === "text") return node.text;
+  if (node.type === "file") return node.file;
+  if (node.type === "link") return node.url;
+  if (node.type === "group") return node.label ?? "";
+  return "";
+}
+
+function centerOnNode(node: CanvasNode) {
+  centerOn(node.x + node.width / 2, node.y + node.height / 2);
+}
+
+function enterSearch() {
+  searchQuery = "";
+  searchMatchIds = [];
+  searchCurrentIndex = 0;
+  searchConfirmed = false;
+  mode = "search";
+}
+
+function exitSearch() {
+  searchQuery = "";
+  searchMatchIds = [];
+  searchCurrentIndex = 0;
+  searchConfirmed = false;
+  mode = "normal";
+}
+
+function setSearchQuery(query: string) {
+  searchQuery = query;
+  if (!query) {
+    searchMatchIds = [];
+    searchCurrentIndex = 0;
+    return;
+  }
+  const q = query.toLowerCase();
+  searchMatchIds = nodes
+    .filter(n => getNodeText(n).toLowerCase().includes(q))
+    .map(n => n.id);
+  searchCurrentIndex = 0;
+  if (searchMatchIds.length > 0) {
+    const node = nodes.find(n => n.id === searchMatchIds[0]);
+    if (node) centerOnNode(node);
+  }
+}
+
+function searchNext() {
+  if (searchMatchIds.length === 0) return;
+  searchCurrentIndex = (searchCurrentIndex + 1) % searchMatchIds.length;
+  const node = nodes.find(n => n.id === searchMatchIds[searchCurrentIndex]);
+  if (node) centerOnNode(node);
+}
+
+function searchPrev() {
+  if (searchMatchIds.length === 0) return;
+  searchCurrentIndex = (searchCurrentIndex - 1 + searchMatchIds.length) % searchMatchIds.length;
+  const node = nodes.find(n => n.id === searchMatchIds[searchCurrentIndex]);
+  if (node) centerOnNode(node);
+}
+
+function confirmSearch() {
+  if (searchMatchIds.length > 0) {
+    const id = searchMatchIds[searchCurrentIndex];
+    selectNode(id);
+  }
+  searchConfirmed = true;
+}
+
 /** Map canvas spec color preset "1"-"6" to config color values */
 function resolveColor(preset: string | undefined): string | undefined {
   if (!preset || !config) return undefined;
@@ -436,5 +512,16 @@ export function getStore() {
     redo,
     get canUndo() { return history.length > 0; },
     get canRedo() { return future.length > 0; },
+    // Search
+    get searchQuery() { return searchQuery; },
+    get searchMatchIds() { return searchMatchIds; },
+    get searchCurrentIndex() { return searchCurrentIndex; },
+    get searchConfirmed() { return searchConfirmed; },
+    enterSearch,
+    exitSearch,
+    setSearchQuery,
+    searchNext,
+    searchPrev,
+    confirmSearch,
   };
 }

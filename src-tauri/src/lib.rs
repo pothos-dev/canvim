@@ -88,6 +88,7 @@ yank = "y"
 paste = "p"
 undo = "u"
 redo = "C-r"
+search = "/"
 
 [keybindings.move]
 left = "h"
@@ -164,6 +165,7 @@ config_struct!(NormalKeybindings {
     paste: String = "p".into(),
     undo: String = "u".into(),
     redo: String = "C-r".into(),
+    search: String = "/".into(),
 });
 
 config_struct!(MoveKeybindings {
