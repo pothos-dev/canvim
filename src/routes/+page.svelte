@@ -10,6 +10,12 @@
 
   onMount(async () => {
     try {
+      // Dynamic import keeps mock out of the production Tauri bundle
+      if (!(window as unknown as Record<string, unknown>).__TAURI_INTERNALS__) {
+        const { installMock } = await import("$lib/tauri-mock");
+        installMock();
+      }
+
       await store.loadConfig();
       const path = await invoke<string | null>("get_file_path");
       if (path) {

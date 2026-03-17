@@ -20,29 +20,16 @@
   import java from "highlight.js/lib/languages/java";
   import type { CanvasNode, ConfigColors } from "./types";
 
-  hljs.registerLanguage("javascript", javascript);
-  hljs.registerLanguage("js", javascript);
-  hljs.registerLanguage("typescript", typescript);
-  hljs.registerLanguage("ts", typescript);
-  hljs.registerLanguage("python", python);
-  hljs.registerLanguage("py", python);
-  hljs.registerLanguage("bash", bash);
-  hljs.registerLanguage("sh", bash);
-  hljs.registerLanguage("json", json);
-  hljs.registerLanguage("css", css);
-  hljs.registerLanguage("html", xml);
-  hljs.registerLanguage("xml", xml);
-  hljs.registerLanguage("rust", rust);
-  hljs.registerLanguage("rs", rust);
-  hljs.registerLanguage("go", go);
-  hljs.registerLanguage("yaml", yaml);
-  hljs.registerLanguage("yml", yaml);
-  hljs.registerLanguage("markdown", markdown);
-  hljs.registerLanguage("md", markdown);
-  hljs.registerLanguage("sql", sql);
-  hljs.registerLanguage("c", c);
-  hljs.registerLanguage("cpp", cpp);
-  hljs.registerLanguage("java", java);
+  const languages: Record<string, typeof javascript> = {
+    javascript, js: javascript, typescript, ts: typescript,
+    python, py: python, bash, sh: bash, json, css,
+    html: xml, xml, rust, rs: rust, go,
+    yaml, yml: yaml, markdown, md: markdown,
+    sql, c, cpp, java,
+  };
+  for (const [name, lang] of Object.entries(languages)) {
+    hljs.registerLanguage(name, lang);
+  }
 
   marked.use(markedHighlight({
     highlight(code, lang) {
