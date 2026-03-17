@@ -113,13 +113,17 @@
   }
 
   .node.selected {
-    opacity: 0.9;
+    opacity: 1;
     box-shadow: 0 0 0 2px #7aa2f7, 0 4px 16px rgba(122, 162, 247, 0.2);
   }
 
   .node.hovered {
     opacity: 1;
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+  }
+
+  .node.selected.hovered {
+    box-shadow: 0 0 0 2px #7aa2f7, 0 4px 20px rgba(122, 162, 247, 0.3);
   }
 
   .node.editing {

@@ -178,24 +178,14 @@ export const commands: Command[] = [
 
   // Enter move mode
   { id: "enter_move", mode: "normal", label: "move", configKey: "normal.enter_move",
-    available: hasNodeOrSelected,
-    execute: (ctx) => {
-      if (ctx.store.selectedNodeIds.length === 0 && ctx.nodeUnderCursor) {
-        ctx.store.selectNode(ctx.nodeUnderCursor.id);
-      }
-      ctx.store.enterMove();
-    },
+    available: (ctx) => ctx.store.selectedNodeIds.length > 0,
+    execute: (ctx) => ctx.store.enterMove(),
   },
 
   // Enter resize mode
   { id: "enter_resize", mode: "normal", label: "resize", configKey: "normal.enter_resize",
-    available: hasNodeOrSelected,
-    execute: (ctx) => {
-      if (ctx.store.selectedNodeIds.length === 0 && ctx.nodeUnderCursor) {
-        ctx.store.selectNode(ctx.nodeUnderCursor.id);
-      }
-      ctx.store.enterResize();
-    },
+    available: (ctx) => ctx.store.selectedNodeIds.length > 0,
+    execute: (ctx) => ctx.store.enterResize(),
   },
 
   // Connect
@@ -351,7 +341,7 @@ function isAvailableFromSnapshot(cmd: Command, snap: HintSnapshot): boolean {
       return noMulti && snap.hasNode;
     case "enter_move":
     case "enter_resize":
-      return hasNodeOrSelected;
+      return snap.selectedCount > 0;
     case "connect":
       return noMulti && snap.hasNode;
     case "toggle_select":
