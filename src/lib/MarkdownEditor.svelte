@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount, onDestroy } from "svelte";
+  import { UI_COLORS } from "./constants";
   import { EditorView, keymap, placeholder as cmPlaceholder } from "@codemirror/view";
   import { EditorState } from "@codemirror/state";
   import { markdown } from "@codemirror/lang-markdown";
@@ -11,11 +12,11 @@
     value: string;
     onInput: (value: string) => void;
     onEscape: () => void;
-    bgColor?: string;
-    textColor?: string;
+    bgColor: string;
+    textColor: string;
   }
 
-  let { value, onInput, onEscape, bgColor = "#1e1e1e", textColor = "#cdd6f4" }: Props = $props();
+  let { value, onInput, onEscape, bgColor, textColor }: Props = $props();
   let containerEl: HTMLDivElement | undefined = $state();
   let view: EditorView | undefined;
 
@@ -48,10 +49,10 @@
       backgroundColor: "transparent",
     },
     ".cm-selectionBackground": {
-      backgroundColor: "rgba(122, 162, 247, 0.25) !important",
+      backgroundColor: `${UI_COLORS.selection_bg} !important`,
     },
     "&.cm-focused .cm-selectionBackground": {
-      backgroundColor: "rgba(122, 162, 247, 0.35) !important",
+      backgroundColor: `${UI_COLORS.selection_bg_focused} !important`,
     },
     ".cm-cursor": {
       borderLeftColor: textColor,

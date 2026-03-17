@@ -5,14 +5,16 @@
   interface Props {
     edge: Edge;
     nodes: CanvasNode[];
-    defaultColor?: string;
+    defaultColor: string;
+    labelBgColor: string;
+    labelTextColor: string;
     selected?: boolean;
     hovered?: boolean;
     onClick?: (id: string) => void;
     resolveColor?: (preset: string | undefined) => string | undefined;
   }
 
-  let { edge, nodes, defaultColor = "#585b70", selected = false, hovered = false, onClick, resolveColor }: Props = $props();
+  let { edge, nodes, defaultColor, labelBgColor, labelTextColor, selected = false, hovered = false, onClick, resolveColor }: Props = $props();
 
   const sideAngles: Record<Side, number> = {
     top: -90, bottom: 90, left: 180, right: 0,
@@ -87,7 +89,7 @@
     width={edge.label.length * 7.2 + 12}
     height="22"
     rx="4"
-    fill="#181825"
+    fill={labelBgColor}
     fill-opacity="0.85"
     style="pointer-events: none;"
   />
@@ -95,7 +97,7 @@
     x={midpoint.x}
     y={midpoint.y - 4}
     text-anchor="middle"
-    fill="#cdd6f4"
+    fill={labelTextColor}
     font-size="12"
     font-family="monospace"
     style="pointer-events: none;"

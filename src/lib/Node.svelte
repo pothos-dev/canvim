@@ -3,6 +3,7 @@
   import { marked } from "./markdown";
   import MarkdownEditor from "./MarkdownEditor.svelte";
   import type { CanvasNode, ConfigColors } from "./types";
+  import { UI_COLORS } from "./constants";
 
   interface Props {
     node: CanvasNode;
@@ -16,7 +17,7 @@
     onSelect: (id: string) => void;
     onUpdate: (id: string, text: string) => void;
     onExitInsert: () => void;
-    colors?: ConfigColors;
+    colors: ConfigColors;
     resolveColor: (preset: string | undefined) => string | undefined;
   }
 
@@ -61,11 +62,19 @@
   }
 
   const nodeColor = $derived(resolveColor(node.color));
-  const borderColor = $derived(nodeColor ?? colors?.node_border ?? "#555");
-  const bgColor = $derived(colors?.node_background ?? "#1e1e1e");
-  const textColor = $derived(colors?.text ?? "#cdd6f4");
-  const fontFamily = $derived(colors?.node_font ?? "system-ui, sans-serif");
-  const fontSize = $derived(colors?.node_font_size ?? 14);
+  const borderColor = $derived(nodeColor ?? colors.node_border);
+  const bgColor = $derived.by(() => {
+    if (!nodeColor) return colors.node_background;
+    // Parse hex color and create a tinted background
+    const hex = nodeColor.replace("#", "");
+    const r = parseInt(hex.substring(0, 2), 16);
+    const g = parseInt(hex.substring(2, 4), 16);
+    const b = parseInt(hex.substring(4, 6), 16);
+    return `color-mix(in srgb, ${colors.node_background} 85%, rgb(${r}, ${g}, ${b}))`;
+  });
+  const textColor = $derived(colors.text);
+  const fontFamily = $derived(colors.node_font);
+  const fontSize = $derived(colors.node_font_size);
 </script>
 
 <!-- svelte-ignore a11y_click_events_have_key_events -->
@@ -84,7 +93,18 @@
     top: {node.y}px;
     width: {node.width}px;
     height: {node.height}px;
-    background: {node.type === 'group' ? 'rgba(255,255,255,0.03)' : bgColor};
+    --selected: {UI_COLORS.selected};
+    --selected-shadow: {UI_COLORS.selected_shadow};
+    --selected-hover-shadow: {UI_COLORS.selected_hover_shadow};
+    --hover-shadow: {UI_COLORS.hover_shadow};
+    --editing-shadow: {UI_COLORS.editing_shadow};
+    --editing-border: {UI_COLORS.editing_border};
+    --connect-source: {UI_COLORS.connect_source};
+    --connect-target: {UI_COLORS.connect_target};
+    --connect-color: {UI_COLORS.connect_color};
+    --search-match: {UI_COLORS.search_match};
+    --code-bg: {UI_COLORS.code_bg};
+    background: {node.type === 'group' ? UI_COLORS.group_bg : bgColor};
     color: {textColor};
     font-family: {fontFamily};
     font-size: {fontSize}px;
@@ -121,31 +141,31 @@
 
   .node.selected {
     opacity: 1;
-    box-shadow: 0 0 0 2px #7aa2f7, 0 4px 16px rgba(122, 162, 247, 0.2);
+    box-shadow: 0 0 0 2px var(--selected), 0 4px 16px var(--selected-shadow);
   }
 
   .node.hovered {
     opacity: 1;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+    box-shadow: 0 4px 20px var(--hover-shadow);
   }
 
   .node.selected.hovered {
-    box-shadow: 0 0 0 2px #7aa2f7, 0 4px 20px rgba(122, 162, 247, 0.3);
+    box-shadow: 0 0 0 2px var(--selected), 0 4px 20px var(--selected-hover-shadow);
   }
 
   .node.editing {
     opacity: 1;
-    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.15);
+    box-shadow: 0 6px 24px var(--editing-shadow), 0 0 0 1px var(--editing-border);
   }
 
   .node.connect-source {
     opacity: 1;
-    box-shadow: 0 0 12px rgba(247, 118, 142, 0.5), 0 0 0 2px #f7768e;
+    box-shadow: 0 0 12px var(--connect-source), 0 0 0 2px var(--connect-color);
   }
 
   .node.connect-target {
     opacity: 1;
-    box-shadow: 0 0 16px rgba(247, 118, 142, 0.6), 0 0 0 2px #f7768e;
+    box-shadow: 0 0 16px var(--connect-target), 0 0 0 2px var(--connect-color);
   }
 
   .node.dimmed {
@@ -187,7 +207,7 @@
   .node-content :global(:not(pre) > code) {
     padding: 0.15em 0.3em;
     border-radius: 3px;
-    background: rgba(255, 255, 255, 0.06);
+    background: var(--code-bg);
   }
 
   .node-content :global(h1) { font-size: 1.4em; margin: 0 0 0.4em; }
@@ -202,7 +222,7 @@
   .node-content :global(hr) { opacity: 0.4; border: none; border-top: 1px solid currentColor; }
 
   .node-content :global(mark.search-match) {
-    background: rgba(230, 180, 50, 0.4);
+    background: var(--search-match);
     color: inherit;
     border-radius: 2px;
   }

@@ -5,7 +5,7 @@
   import type { CanvasNode, Edge, Point, Side } from "./types";
   import { getStore } from "./canvas-store.svelte";
   import { buildKeyMap, getHints, type CommandContext, type HintSnapshot } from "./commands";
-  import { STEP, ZOOM_STEP, BORDER_ZONE, EDGE_HIT_THRESHOLD } from "./constants";
+  import { STEP, ZOOM_STEP, BORDER_ZONE, EDGE_HIT_THRESHOLD, UI_COLORS } from "./constants";
   import { marked } from "./markdown";
   import { pointInNode, attachmentPoint, detectSide, autoSides, distToBezier } from "./geometry";
 
@@ -81,8 +81,8 @@
     const ids = store.selectedNodeIds;
     if (ids.length === 0) return;
 
-    const fontFamily = colors?.node_font ?? "system-ui, sans-serif";
-    const fontSize = colors?.node_font_size ?? 14;
+    const fontFamily = colors.node_font;
+    const fontSize = colors.node_font_size;
 
     // Create off-screen measurement div
     const measure = document.createElement("div");
@@ -386,11 +386,12 @@
     normal: "NORMAL", insert: "INSERT", connect: "CONNECT", move: "MOVE", resize: "RESIZE", search: "SEARCH",
   };
   const MODE_COLORS: Record<string, string> = {
-    normal: "#7aa2f7", insert: "#9ece6a", connect: "#f7768e", move: "#e0de71", resize: "#e9973f", search: "#bb9af7",
+    normal: UI_COLORS.mode_normal, insert: UI_COLORS.mode_insert, connect: UI_COLORS.mode_connect,
+    move: UI_COLORS.mode_move, resize: UI_COLORS.mode_resize, search: UI_COLORS.mode_search,
   };
   const modeLabel = $derived(MODE_LABELS[store.mode] ?? "NORMAL");
-  const modeColor = $derived(MODE_COLORS[store.mode] ?? "#7aa2f7");
-  const colors = $derived(store.config?.colors);
+  const modeColor = $derived(MODE_COLORS[store.mode] ?? UI_COLORS.mode_normal);
+  const colors = $derived(store.config!.colors);
 
   let containerEl: HTMLDivElement | undefined = $state();
   let searchInputEl: HTMLInputElement | undefined = $state();
@@ -441,10 +442,15 @@
   onmousedown={handleMouseDown}
   onclick={handleBackgroundClick}
   style="
-    background-color: {colors?.background ?? '#181825'};
+    --connect-color: {UI_COLORS.connect_color};
+    --selected-color: {UI_COLORS.selected};
+    --subtle-border: {UI_COLORS.subtle_border};
+    --edge-label-bg: {colors.background};
+    --edge-label-text: {colors.text};
+    background-color: {colors.background};
     background-image:
-      radial-gradient(circle, {colors?.dot_grid ?? 'rgba(205,214,244,0.18)'} 2px, transparent 2px),
-      radial-gradient(circle, {colors?.dot_grid ?? 'rgba(205,214,244,0.08)'} 1px, transparent 1px);
+      radial-gradient(circle, {colors.dot_grid} 2px, transparent 2px),
+      radial-gradient(circle, {colors.dot_grid} 1px, transparent 1px);
     background-position:
       calc(50vw + {store.viewport.x % (5 * STEP * store.viewport.zoom)}px) calc(50vh + {store.viewport.y % (5 * STEP * store.viewport.zoom)}px),
       calc(50vw + {store.viewport.x % (STEP * store.viewport.zoom)}px) calc(50vh + {store.viewport.y % (STEP * store.viewport.zoom)}px);
@@ -455,8 +461,8 @@
 >
   <!-- Crosshair -->
   <div class="crosshair" class:hidden={store.mode === "insert"} class:connect-crosshair={store.mode === "connect"}>
-    <div class="crosshair-h" style="background: {colors?.crosshair ?? 'rgba(205,214,244,0.3)'};"></div>
-    <div class="crosshair-v" style="background: {colors?.crosshair ?? 'rgba(205,214,244,0.3)'};"></div>
+    <div class="crosshair-h" style="background: {colors.crosshair};"></div>
+    <div class="crosshair-v" style="background: {colors.crosshair};"></div>
   </div>
 
   <!-- Canvas plane -->
@@ -470,7 +476,9 @@
         <EdgeComponent
           {edge}
           nodes={store.nodes}
-          defaultColor={colors?.edge ?? '#585b70'}
+          defaultColor={colors.edge}
+          labelBgColor={colors.background}
+          labelTextColor={colors.text}
           selected={store.selectedEdgeId === edge.id}
           hovered={edgeUnderCursor?.id === edge.id && store.mode === "normal"}
           onClick={handleEdgeClick}
@@ -487,10 +495,10 @@
           {@const dx = to.x - from.x}
           {@const bezierPath = `M ${from.x} ${from.y} C ${from.x + dx * 0.5} ${from.y}, ${to.x - dx * 0.5} ${to.y}, ${to.x} ${to.y}`}
           {@const angle = Math.atan2(to.y - from.y, to.x - from.x) * (180 / Math.PI)}
-          <path d={bezierPath} stroke="#f7768e" stroke-width="2" fill="none" stroke-dasharray="6 4" opacity="0.8" />
+          <path d={bezierPath} stroke={UI_COLORS.connect_color} stroke-width="2" fill="none" stroke-dasharray="6 4" opacity="0.8" />
           <polygon
             points="-8,-4 0,0 -8,4"
-            fill="#f7768e"
+            fill={UI_COLORS.connect_color}
             opacity="0.8"
             transform="translate({to.x},{to.y}) rotate({angle})"
           />
@@ -559,7 +567,7 @@
 
   <!-- Search bar -->
   {#if store.mode === "search"}
-    <div class="search-bar" style="background: {colors?.status_bar_bg ?? '#11111b'}; color: {colors?.text ?? '#cdd6f4'};">
+    <div class="search-bar" style="background: {colors.status_bar_bg}; color: {colors.text};">
       <span class="search-prefix">/</span>
       {#if store.searchConfirmed}
         <span class="search-query">{store.searchQuery}</span>
@@ -572,7 +580,7 @@
           oninput={(e) => store.setSearchQuery(e.currentTarget.value)}
           onkeydown={handleSearchKeydown}
           placeholder="search..."
-          style="color: {colors?.text ?? '#cdd6f4'};"
+          style="color: {colors.text};"
         />
       {/if}
       <span class="search-count">
@@ -593,7 +601,7 @@
   {/if}
 
   <!-- Status bar -->
-  <div class="status-bar" style="background: {colors?.status_bar_bg ?? '#11111b'}; color: {colors?.status_bar_text ?? '#6c7086'};">
+  <div class="status-bar" style="background: {colors.status_bar_bg}; color: {colors.status_bar_text};">
     <span class="mode-indicator" style="color: {modeColor}; border-color: {modeColor};">
       {modeLabel}
     </span>
@@ -659,7 +667,7 @@
 
   .crosshair.connect-crosshair .crosshair-h,
   .crosshair.connect-crosshair .crosshair-v {
-    background: #f7768e !important;
+    background: var(--connect-color) !important;
   }
 
   .crosshair-h,
@@ -731,7 +739,7 @@
     font-size: 14px;
     font-family: monospace;
     z-index: 200;
-    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    border-top: 1px solid var(--subtle-border);
   }
 
   .search-prefix {
@@ -767,9 +775,9 @@
   }
 
   .edge-label-input {
-    background: #181825;
-    color: #cdd6f4;
-    border: 1px solid #7aa2f7;
+    background: var(--edge-label-bg);
+    color: var(--edge-label-text);
+    border: 1px solid var(--selected-color);
     border-radius: 4px;
     padding: 2px 8px;
     font-size: 12px;

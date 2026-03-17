@@ -2,6 +2,7 @@
   import { onMount } from "svelte";
   import Canvas from "$lib/Canvas.svelte";
   import { getStore } from "$lib/canvas-store.svelte";
+  import { UI_COLORS } from "$lib/constants";
 
   const store = getStore();
   let ready = $state(false);
@@ -23,12 +24,16 @@
   });
 </script>
 
+<svelte:head>
+  {@html `<style>body { background: ${UI_COLORS.loading_bg}; }</style>`}
+</svelte:head>
+
 {#if error}
-  <div class="error">{error}</div>
+  <div class="error" style="color: {UI_COLORS.error_text};">{error}</div>
 {:else if ready}
   <Canvas />
 {:else}
-  <div class="loading">Loading...</div>
+  <div class="loading" style="color: {UI_COLORS.loading_text};">Loading...</div>
 {/if}
 
 <style>
@@ -36,7 +41,6 @@
     margin: 0;
     padding: 0;
     overflow: hidden;
-    background: #181825;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   }
 
@@ -45,11 +49,6 @@
     align-items: center;
     justify-content: center;
     height: 100vh;
-    color: #cdd6f4;
     font-size: 16px;
-  }
-
-  .error {
-    color: #f38ba8;
   }
 </style>
