@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "qanvas",
+  "productName": "canvim",
   "version": "0.1.0",
-  "identifier": "dev.qanvas.app",
+  "identifier": "dev.canvim.app",
   "build": {
     "beforeDevCommand": "bun run dev",
     "devUrl": "http://localhost:1420",
@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "Qanvas",
+        "title": "Canvim",
         "width": 1200,
         "height": 800,
         "decorations": false

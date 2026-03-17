@@ -1,12 +1,12 @@
 [package]
-name = "qanvas"
+name = "canvim"
 version = "0.1.0"
 description = "A JSON Canvas Editor"
 authors = ["you"]
 edition = "2021"
 
 [lib]
-name = "qanvas_lib"
+name = "canvim_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]

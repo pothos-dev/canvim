@@ -4,7 +4,7 @@
 fn main() {
     // Auto-daemonize: if not already a child process, re-exec detached
     #[cfg(target_os = "linux")]
-    if std::env::var("QANVAS_DAEMONIZED").is_err() {
+    if std::env::var("CANVIM_DAEMONIZED").is_err() {
         use std::process::Command;
 
         let exe = std::env::current_exe().expect("failed to get exe path");
@@ -12,7 +12,7 @@ fn main() {
 
         Command::new(exe)
             .args(&args)
-            .env("QANVAS_DAEMONIZED", "1")
+            .env("CANVIM_DAEMONIZED", "1")
             .stdin(std::process::Stdio::null())
             .stdout(std::process::Stdio::null())
             .stderr(std::process::Stdio::null())
@@ -22,5 +22,5 @@ fn main() {
         return;
     }
 
-    qanvas_lib::run()
+    canvim_lib::run()
 }

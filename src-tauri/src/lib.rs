@@ -7,7 +7,7 @@ use tauri_plugin_cli::CliExt;
 
 // --- Config ---
 
-const DEFAULT_CONFIG: &str = r##"# Qanvas configuration
+const DEFAULT_CONFIG: &str = r##"# Canvim configuration
 
 [colors]
 background = "#181825"
@@ -303,7 +303,7 @@ impl Default for Config {
 fn config_path() -> PathBuf {
     dirs::config_dir()
         .unwrap_or_else(|| PathBuf::from("."))
-        .join("qanvas")
+        .join("canvim")
         .join("config.toml")
 }
 
