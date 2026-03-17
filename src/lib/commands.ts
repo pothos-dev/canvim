@@ -249,6 +249,8 @@ export const commands: Command[] = [
   { id: "move_right_arrow", mode: "move", label: "move", group: "move_dir", configKey: "move.right", hidden: true, available: always, execute: dirExecutor(1, 0, "move") },
   { id: "move_up_arrow", mode: "move", label: "move", group: "move_dir", configKey: "move.up", hidden: true, available: always, execute: dirExecutor(0, -1, "move") },
   { id: "move_down_arrow", mode: "move", label: "move", group: "move_dir", configKey: "move.down", hidden: true, available: always, execute: dirExecutor(0, 1, "move") },
+  { id: "move_to_resize", mode: "move", label: "resize", configKey: "normal.enter_resize", hidden: true, available: always,
+    execute: (ctx) => { ctx.store.switchToResize(); } },
   { id: "move_exit", mode: "move", label: "exit", configKey: "move.exit", available: always,
     execute: (ctx) => ctx.store.exitMove() },
 
@@ -262,6 +264,8 @@ export const commands: Command[] = [
   { id: "resize_right_arrow", mode: "resize", label: "resize", group: "resize_dir", configKey: "resize.right", hidden: true, available: always, execute: dirExecutor(1, 0, "resize") },
   { id: "resize_up_arrow", mode: "resize", label: "resize", group: "resize_dir", configKey: "resize.up", hidden: true, available: always, execute: dirExecutor(0, -1, "resize") },
   { id: "resize_down_arrow", mode: "resize", label: "resize", group: "resize_dir", configKey: "resize.down", hidden: true, available: always, execute: dirExecutor(0, 1, "resize") },
+  { id: "resize_to_move", mode: "resize", label: "move", configKey: "normal.enter_move", hidden: true, available: always,
+    execute: (ctx) => { ctx.store.switchToMove(); } },
   { id: "resize_exit", mode: "resize", label: "exit", configKey: "resize.exit", available: always,
     execute: (ctx) => ctx.store.exitResize() },
 

@@ -184,6 +184,14 @@ function exitResize() {
   if (implicitSelect) { deselectAll(); implicitSelect = false; }
 }
 
+function switchToResize() {
+  mode = "resize";
+}
+
+function switchToMove() {
+  mode = "move";
+}
+
 function exitInsert() {
   mode = "normal";
 }
@@ -297,6 +305,8 @@ export function getStore() {
     exitMove,
     enterResize,
     exitResize,
+    switchToResize,
+    switchToMove,
     enterConnect,
     exitConnect,
     setConnectFromSide,
