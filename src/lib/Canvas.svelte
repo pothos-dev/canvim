@@ -151,7 +151,7 @@
 
   function handleKeydown(e: KeyboardEvent) {
     // Prevent browser defaults on Ctrl+key combos we handle
-    if (e.ctrlKey && (e.key === "=" || e.key === "+" || e.key === "-" || e.key === "0" || e.key === "r")) {
+    if (e.ctrlKey && (e.key === "=" || e.key === "+" || e.key === "-" || e.key === "0" || e.key === "r" || e.key === "c" || e.key === "v")) {
       e.preventDefault();
     }
 

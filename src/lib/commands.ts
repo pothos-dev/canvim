@@ -232,6 +232,40 @@ export const commands: Command[] = [
     execute: (ctx) => ctx.store.deselectAll(),
   },
 
+  // Yank / Paste
+  { id: "yank", mode: "normal", label: "yank", configKey: "normal.yank",
+    available: hasNodeOrSelected,
+    execute: (ctx) => {
+      if (ctx.store.selectedNodeIds.length === 0 && ctx.nodeUnderCursor) {
+        ctx.store.selectNode(ctx.nodeUnderCursor.id);
+      }
+      ctx.store.yankSelected();
+    },
+  },
+  { id: "yank_ctrlc", mode: "normal", label: "yank", configKey: "normal.yank", hidden: true,
+    available: hasNodeOrSelected,
+    execute: (ctx) => {
+      if (ctx.store.selectedNodeIds.length === 0 && ctx.nodeUnderCursor) {
+        ctx.store.selectNode(ctx.nodeUnderCursor.id);
+      }
+      ctx.store.yankSelected();
+    },
+  },
+  { id: "paste", mode: "normal", label: "paste", configKey: "normal.paste",
+    available: (ctx) => ctx.store.canPaste,
+    execute: (ctx) => {
+      const center = ctx.getCanvasCenter();
+      ctx.store.paste(center.x, center.y);
+    },
+  },
+  { id: "paste_ctrlv", mode: "normal", label: "paste", configKey: "normal.paste", hidden: true,
+    available: (ctx) => ctx.store.canPaste,
+    execute: (ctx) => {
+      const center = ctx.getCanvasCenter();
+      ctx.store.paste(center.x, center.y);
+    },
+  },
+
   // Undo / Redo
   { id: "undo", mode: "normal", label: "undo", configKey: "normal.undo",
     available: (ctx) => ctx.store.canUndo,
@@ -341,6 +375,8 @@ export function buildKeyMap(config: Config): Map<string, Command[]> {
     "resize_down_arrow": "ArrowDown",
     "delete_key": "Delete",
     "zoom_in_eq": "=",
+    "yank_ctrlc": "C-c",
+    "paste_ctrlv": "C-v",
   };
 
   for (const cmd of commands) {
@@ -395,6 +431,10 @@ function isAvailableFromSnapshot(cmd: Command, snap: HintSnapshot): boolean {
     case "color_green": case "color_cyan": case "color_purple":
     case "color_clear":
       return snap.hasNode || snap.hasEdge || snap.selectedCount > 0;
+    case "yank":
+      return hasNodeOrSelected;
+    case "paste":
+      return true; // Can't check clipboard in snapshot, always show hint
     case "undo":
     case "redo":
       return true; // Can't check history in snapshot, always show hint

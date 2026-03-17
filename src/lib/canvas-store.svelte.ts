@@ -15,6 +15,7 @@ let connectFromNodeId = $state<string | null>(null);
 let connectFromSide = $state<Side | null>(null);
 let filePath = $state<string | null>(null);
 let config = $state<Config | null>(null);
+let clipboard: { nodes: CanvasNode[]; edges: Edge[] } | null = null;
 let saveTimeout: ReturnType<typeof setTimeout> | null = null;
 
 const MAX_HISTORY = 100;
@@ -208,6 +209,62 @@ function setEdgeColor(id: string, color: string) {
   }
 }
 
+function yankSelected() {
+  const ids = new Set(selectedNodeIds);
+  if (ids.size === 0) return;
+  const clonedNodes: CanvasNode[] = JSON.parse(JSON.stringify(
+    nodes.filter(n => ids.has(n.id))
+  ));
+  const clonedEdges: Edge[] = JSON.parse(JSON.stringify(
+    edges.filter(e => ids.has(e.fromNode) && ids.has(e.toNode))
+  ));
+  clipboard = { nodes: clonedNodes, edges: clonedEdges };
+}
+
+function paste(centerX: number, centerY: number) {
+  if (!clipboard || clipboard.nodes.length === 0) return;
+  pushSnapshot();
+
+  const idMap = new Map<string, string>();
+  const clonedNodes: CanvasNode[] = JSON.parse(JSON.stringify(clipboard.nodes));
+  const clonedEdges: Edge[] = JSON.parse(JSON.stringify(clipboard.edges));
+
+  // Generate new IDs
+  for (const node of clonedNodes) {
+    const newId = generateId();
+    idMap.set(node.id, newId);
+    node.id = newId;
+  }
+  for (const edge of clonedEdges) {
+    edge.id = generateId();
+    edge.fromNode = idMap.get(edge.fromNode) ?? edge.fromNode;
+    edge.toNode = idMap.get(edge.toNode) ?? edge.toNode;
+  }
+
+  // Calculate bounding box center of copied nodes, offset to target center
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  for (const n of clonedNodes) {
+    minX = Math.min(minX, n.x);
+    minY = Math.min(minY, n.y);
+    maxX = Math.max(maxX, n.x + n.width);
+    maxY = Math.max(maxY, n.y + n.height);
+  }
+  const bboxCX = (minX + maxX) / 2;
+  const bboxCY = (minY + maxY) / 2;
+  const dx = centerX - bboxCX;
+  const dy = centerY - bboxCY;
+  for (const n of clonedNodes) {
+    n.x += dx;
+    n.y += dy;
+  }
+
+  nodes.push(...clonedNodes);
+  edges.push(...clonedEdges);
+  selectedNodeIds = clonedNodes.map(n => n.id);
+  mode = "normal";
+  debouncedSave();
+}
+
 function enterInsert() {
   if (selectedNodeIds.length === 1 || selectedEdgeId) {
     pushSnapshot();
@@ -372,6 +429,9 @@ export function getStore() {
     resolveColor,
     pushSnapshot,
     popSnapshot,
+    yankSelected,
+    paste,
+    get canPaste() { return clipboard !== null; },
     undo,
     redo,
     get canUndo() { return history.length > 0; },
