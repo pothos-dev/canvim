@@ -135,8 +135,9 @@ export const commands: Command[] = [
     available: (ctx) => noMultiSelect(ctx) && !!ctx.nodeUnderCursor,
     execute: (ctx) => {
       if (ctx.nodeUnderCursor) {
+        const implicit = !ctx.store.selectedNodeIds.includes(ctx.nodeUnderCursor.id);
         ctx.store.selectNode(ctx.nodeUnderCursor.id);
-        ctx.store.enterInsert();
+        ctx.store.enterInsert(implicit);
       }
     },
   },

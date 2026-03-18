@@ -59,7 +59,7 @@ Draw edges between nodes. Press `c` on a source node, navigate with `hjkl` to a 
 | `h` `j` `k` `l` | Pan viewport |
 | `a` | Add node at cursor |
 | `Enter` | Select node/edge under cursor |
-| `i` | Edit node (select + insert mode) |
+| `i` | Edit node under cursor |
 | `d` / `Delete` | Delete node/edge (or selection) |
 | `m` | Enter Move mode |
 | `r` | Enter Resize mode |

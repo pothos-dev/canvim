@@ -294,9 +294,10 @@ function paste(centerX: number, centerY: number) {
   debouncedSave();
 }
 
-function enterInsert() {
+function enterInsert(implicit = false) {
   if (selectedNodeIds.length === 1 || selectedEdgeId) {
     pushSnapshot();
+    implicitSelect = implicit;
     mode = "insert";
   }
 }
@@ -333,6 +334,7 @@ function switchToMove() {
 
 function exitInsert() {
   mode = "normal";
+  if (implicitSelect) { deselectAll(); implicitSelect = false; }
 }
 
 function snapViewport() {
