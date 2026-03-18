@@ -10,12 +10,13 @@
     labelTextColor: string;
     selected?: boolean;
     hovered?: boolean;
+    highlighted?: boolean;
     editing?: boolean;
     onClick?: (id: string) => void;
     resolveColor?: (preset: string | undefined) => string | undefined;
   }
 
-  let { edge, nodes, defaultColor, labelBgColor, labelTextColor, selected = false, hovered = false, editing = false, onClick, resolveColor }: Props = $props();
+  let { edge, nodes, defaultColor, labelBgColor, labelTextColor, selected = false, hovered = false, highlighted = false, editing = false, onClick, resolveColor }: Props = $props();
 
   const sideAngles: Record<Side, number> = {
     top: -90, bottom: 90, left: 180, right: 0,
@@ -50,8 +51,10 @@
   const arrowAngle = $derived(sideAngles[resolvedSides.toSide] + 180);
   const midpoint = $derived(bezierMidpoint(from, to, resolvedSides.fromSide, resolvedSides.toSide));
 
-  const opacity = $derived(selected || hovered ? 1 : 0.7);
+  const active = $derived(selected || hovered || highlighted);
+  const opacity = $derived(active ? 1 : 0.7);
   const strokeWidth = $derived(selected || hovered ? 3 : 2);
+  const showOutline = $derived(active);
 
   function handleClick(e: MouseEvent) {
     e.stopPropagation();
@@ -70,10 +73,27 @@
   onclick={handleClick}
 />
 
+<!-- White outline stroke (behind visible edge) -->
+{#if showOutline}
+  <path d={path} stroke="white" stroke-width={strokeWidth + 6} fill="none" opacity="0.8" style="pointer-events: none;" />
+{/if}
+
 <!-- Visible edge -->
 <path d={path} stroke={edgeColor} stroke-width={strokeWidth} fill="none" opacity={opacity} style="pointer-events: none;" />
 
 {#if edge.toEnd !== "none"}
+  {#if showOutline}
+    <polygon
+      points="-8,-4 0,0 -8,4"
+      fill="white"
+      opacity="0.8"
+      stroke="white"
+      stroke-width="4"
+      stroke-linejoin="round"
+      transform="translate({to.x},{to.y}) rotate({arrowAngle})"
+      style="pointer-events: none;"
+    />
+  {/if}
   <polygon
     points="-8,-4 0,0 -8,4"
     fill={edgeColor}

@@ -545,35 +545,6 @@
     class="canvas-plane"
     style="transform: translate(calc(50vw + {store.viewport.x}px), calc(50vh + {store.viewport.y}px)) scale({store.viewport.zoom});"
   >
-    <!-- SVG layer for edges -->
-    <svg class="edge-layer" viewBox="-10000 -10000 20000 20000">
-      {#each store.edges as edge (edge.id)}
-        <EdgeComponent
-          {edge}
-          nodes={store.nodes}
-          defaultColor={colors.edge}
-          labelBgColor={colors.background}
-          labelTextColor={colors.text}
-          selected={store.selectedEdgeId === edge.id}
-          hovered={edgeUnderCursor?.id === edge.id && store.mode === "normal"}
-          editing={editingEdgeLabel && store.selectedEdgeId === edge.id}
-          onClick={handleEdgeClick}
-          resolveColor={store.resolveColor}
-        />
-      {/each}
-      {#if store.mode === "connect" && store.connectFromNodeId}
-        {@const fromNode = store.findNode(store.connectFromNodeId!)}
-        {#if fromNode}
-          <ConnectPreview
-            {fromNode}
-            connectFromSide={store.connectFromSide}
-            center={store.getCanvasCenter()}
-            targetNode={getNodeAtCenter()}
-          />
-        {/if}
-      {/if}
-    </svg>
-
     <!-- Visual mode selection rectangle -->
     {#if store.mode === "visual" && store.visualOrigin}
       <VisualRect origin={store.visualOrigin} end={mouseVisualEnd ?? store.getCanvasCenter()} />
@@ -598,6 +569,36 @@
         zoom={store.viewport.zoom}
       />
     {/each}
+
+    <!-- SVG layer for edges (on top of nodes) -->
+    <svg class="edge-layer" viewBox="-10000 -10000 20000 20000">
+      {#each store.edges as edge (edge.id)}
+        <EdgeComponent
+          {edge}
+          nodes={store.nodes}
+          defaultColor={colors.edge}
+          labelBgColor={colors.background}
+          labelTextColor={colors.text}
+          selected={store.selectedEdgeId === edge.id}
+          hovered={edgeUnderCursor?.id === edge.id && store.mode === "normal"}
+          highlighted={store.selectedNodeIds.includes(edge.fromNode) || store.selectedNodeIds.includes(edge.toNode) || currentMatchId === edge.fromNode || currentMatchId === edge.toNode || (nodeUnderCursor?.id === edge.fromNode && store.mode === "normal") || (nodeUnderCursor?.id === edge.toNode && store.mode === "normal")}
+          editing={editingEdgeLabel && store.selectedEdgeId === edge.id}
+          onClick={handleEdgeClick}
+          resolveColor={store.resolveColor}
+        />
+      {/each}
+      {#if store.mode === "connect" && store.connectFromNodeId}
+        {@const fromNode = store.findNode(store.connectFromNodeId!)}
+        {#if fromNode}
+          <ConnectPreview
+            {fromNode}
+            connectFromSide={store.connectFromSide}
+            center={store.getCanvasCenter()}
+            targetNode={getNodeAtCenter()}
+          />
+        {/if}
+      {/if}
+    </svg>
 
     <!-- Edge label editor overlay -->
     {#if editingEdgeLabel && store.selectedEdgeId}
