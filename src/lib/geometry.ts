@@ -157,6 +157,32 @@ export function distToEdge(
   return distToBezier(p0, p3, fromSide, toSide, point);
 }
 
+/** Return which endpoint of an edge the point is closer to, if within threshold */
+export function nearestEdgeEnd(
+  edge: Edge,
+  point: Point,
+  findNode: (id: string) => CanvasNode | undefined,
+  threshold: number = 30,
+): "from" | "to" | null {
+  const fromNode = findNode(edge.fromNode);
+  const toNode = findNode(edge.toNode);
+  if (!fromNode || !toNode) return null;
+
+  const auto = autoSides(fromNode, toNode);
+  const fromSide = (edge.fromSide as Side | undefined) ?? auto.fromSide;
+  const toSide = (edge.toSide as Side | undefined) ?? auto.toSide;
+
+  const p0 = attachmentPoint(fromNode, fromSide);
+  const p3 = attachmentPoint(toNode, toSide);
+
+  const dFrom = Math.hypot(p0.x - point.x, p0.y - point.y);
+  const dTo = Math.hypot(p3.x - point.x, p3.y - point.y);
+
+  if (dFrom <= dTo && dFrom <= threshold) return "from";
+  if (dTo < dFrom && dTo <= threshold) return "to";
+  return null;
+}
+
 /** Find the nearest edge to a point within EDGE_HIT_THRESHOLD */
 export function getEdgeNear(
   edges: Edge[],

@@ -38,6 +38,7 @@ export function getStore() {
     updateEdgeLabel: data.updateEdgeLabel,
     setEdgeColor: data.setEdgeColor,
     addEdge: data.addEdge,
+    updateEdgeEndpoint: data.updateEdgeEndpoint,
     pushSnapshot: data.pushSnapshot,
     popSnapshot: data.popSnapshot,
     yankSelected: data.yankSelected,
@@ -86,7 +87,10 @@ export function getStore() {
     // Connect
     get connectFromNodeId() { return connect.connectFromNodeId; },
     get connectFromSide() { return connect.connectFromSide; },
+    get reconnectEdgeId() { return connect.reconnectEdgeId; },
+    get reconnectEnd() { return connect.reconnectEnd; },
     enterConnect: connect.enterConnect,
+    enterReconnect: connect.enterReconnect,
     exitConnect: connect.exitConnect,
     setConnectFromSide: connect.setConnectFromSide,
 

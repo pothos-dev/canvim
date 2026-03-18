@@ -1,7 +1,7 @@
 import type { Config, CanvasNode, Edge, Point } from "./types";
 import type { Mode } from "./stores/mode.svelte";
 import { STEP, ZOOM_STEP } from "./constants";
-import { detectSide, autoSides } from "./geometry";
+import { detectSide, autoSides, nearestEdgeEnd } from "./geometry";
 
 export interface CommandContext {
   store: ReturnType<typeof import("./stores/index").getStore>;
@@ -284,6 +284,32 @@ export const commands: Command[] = [
     },
   },
 
+  // Reconnect (c on edge endpoint, no node under cursor)
+  { id: "reconnect", mode: "normal", label: "reconnect", configKey: "normal.connect",
+    hidden: true,
+    available: (ctx) => {
+      if (ctx.nodeUnderCursor || !ctx.edgeUnderCursor) return false;
+      const end = nearestEdgeEnd(ctx.edgeUnderCursor, ctx.getCanvasCenter(), ctx.store.findNode);
+      return end !== null;
+    },
+    execute: (ctx) => {
+      const edge = ctx.edgeUnderCursor!;
+      const end = nearestEdgeEnd(edge, ctx.getCanvasCenter(), ctx.store.findNode)!;
+      ctx.store.pushSnapshot();
+      if (end === "to") {
+        const fromNode = ctx.store.findNode(edge.fromNode);
+        if (!fromNode) return;
+        const fromSide = edge.fromSide ?? autoSides(fromNode, ctx.store.findNode(edge.toNode)!).fromSide;
+        ctx.store.enterReconnect(edge.id, "to", edge.fromNode, fromSide);
+      } else {
+        const toNode = ctx.store.findNode(edge.toNode);
+        if (!toNode) return;
+        const toSide = edge.toSide ?? autoSides(ctx.store.findNode(edge.fromNode)!, toNode).toSide;
+        ctx.store.enterReconnect(edge.id, "from", edge.toNode, toSide);
+      }
+    },
+  },
+
   // Visual mode
   { id: "enter_visual", mode: "normal", label: "visual", configKey: "normal.enter_visual",
     available: always,
@@ -382,14 +408,29 @@ export const commands: Command[] = [
       const fromSide = ctx.store.connectFromSide ?? autoSides(fromNode, target).fromSide;
       const center = ctx.getCanvasCenter();
       const toSide = detectSide(target, center);
-      const edgeId = ctx.store.addEdge(fromNode.id, fromSide, target.id, toSide);
-      ctx.store.exitConnect();
-      ctx.store.selectEdge(edgeId);
-      ctx.startEdgeLabelEdit();
+
+      if (ctx.store.reconnectEdgeId) {
+        // Reconnecting: update the detached end
+        const end = ctx.store.reconnectEnd!;
+        ctx.store.updateEdgeEndpoint(ctx.store.reconnectEdgeId, end, target.id, toSide);
+        ctx.store.exitConnect();
+      } else {
+        // New connection
+        const edgeId = ctx.store.addEdge(fromNode.id, fromSide, target.id, toSide);
+        ctx.store.exitConnect();
+        ctx.store.selectEdge(edgeId);
+        ctx.startEdgeLabelEdit();
+      }
     },
   },
   { id: "connect_exit", mode: "connect", label: "cancel", configKey: "connect.exit", available: always,
-    execute: (ctx) => ctx.store.exitConnect() },
+    execute: (ctx) => {
+      if (ctx.store.reconnectEdgeId) {
+        ctx.store.popSnapshot();
+      }
+      ctx.store.exitConnect();
+    },
+  },
 
   // Cycle nodes
   { id: "cycle_next", mode: "normal", label: "next node", configKey: "normal.pan_down", hidden: true,

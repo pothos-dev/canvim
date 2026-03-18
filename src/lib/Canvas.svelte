@@ -13,7 +13,7 @@
   import { buildKeyMap, getHints, type CommandContext, type HintSnapshot } from "./commands";
   import { STEP, UI_COLORS, PAN_ACCEL_MAX, PAN_ACCEL_RAMP, ZOOM_STEP } from "./constants";
   import { marked } from "./markdown";
-  import { pointInNode, detectSide, nodesInRect, findNodeAt, isContainedInGroup, cursorForResizeEdge, getEdgeNear, snap, type ResizeEdge } from "./geometry";
+  import { pointInNode, detectSide, nodesInRect, findNodeAt, isContainedInGroup, cursorForResizeEdge, getEdgeNear, nearestEdgeEnd, snap, autoSides, type ResizeEdge } from "./geometry";
   import { getNodeDisplayText } from "./utils";
 
   const store = getStore();
@@ -307,10 +307,33 @@
       document.body.style.cursor = "grabbing";
       return;
     }
-    if (store.mode === "insert" || store.mode === "connect" || store.mode === "move" || store.mode === "resize" || store.mode === "search" || store.mode === "visual") return;
+    if (store.mode === "insert" || store.mode === "move" || store.mode === "resize" || store.mode === "search" || store.mode === "visual") return;
 
     const canvas = store.screenToCanvas(e.clientX, e.clientY);
     const node = findNodeAt(store.nodes, canvas);
+
+    // Mouse confirm in connect mode
+    if (store.mode === "connect" && e.button === 0) {
+      e.preventDefault();
+      if (node && node.id !== store.connectFromNodeId) {
+        const fromNode = store.findNode(store.connectFromNodeId!);
+        if (!fromNode) { store.exitConnect(); return; }
+        const fromSide = store.connectFromSide ?? autoSides(fromNode, node).fromSide;
+        const toSide = detectSide(node, canvas);
+        if (store.reconnectEdgeId) {
+          store.updateEdgeEndpoint(store.reconnectEdgeId, store.reconnectEnd!, node.id, toSide);
+          store.exitConnect();
+        } else {
+          const edgeId = store.addEdge(fromNode.id, fromSide, node.id, toSide);
+          store.exitConnect();
+          store.selectEdge(edgeId);
+          startEdgeLabelEdit();
+        }
+      }
+      return;
+    }
+
+    if (store.mode === "connect") return;
 
     if (e.button === 0) {
       e.preventDefault();
@@ -332,6 +355,29 @@
         };
         document.body.style.cursor = "grabbing";
       } else {
+        // Check if clicking near an edge endpoint for reconnect
+        const edgeNear = findEdgeNear(canvas);
+        if (edgeNear) {
+          const end = nearestEdgeEnd(edgeNear, canvas, store.findNode);
+          if (end) {
+            e.stopPropagation();
+            store.pushSnapshot();
+            if (end === "to") {
+              const fromNode = store.findNode(edgeNear.fromNode);
+              if (!fromNode) return;
+              const fromSide = edgeNear.fromSide ?? autoSides(fromNode, store.findNode(edgeNear.toNode)!).fromSide;
+              store.enterReconnect(edgeNear.id, "to", edgeNear.fromNode, fromSide);
+            } else {
+              const toNode = store.findNode(edgeNear.toNode);
+              if (!toNode) return;
+              const toSide = edgeNear.toSide ?? autoSides(store.findNode(edgeNear.fromNode)!, toNode).toSide;
+              store.enterReconnect(edgeNear.id, "from", edgeNear.toNode, toSide);
+            }
+            inputMode = "mouse";
+            return;
+          }
+        }
+
         dragging = {
           type: "pan",
           startMouseX: e.clientX,

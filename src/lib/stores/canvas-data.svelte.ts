@@ -194,6 +194,19 @@ function setEdgeColor(id: string, color: string) {
   }
 }
 
+function updateEdgeEndpoint(id: string, end: "from" | "to", nodeId: string, side: Side) {
+  const edge = edges.find((e) => e.id === id);
+  if (!edge) return;
+  if (end === "from") {
+    edge.fromNode = nodeId;
+    edge.fromSide = side;
+  } else {
+    edge.toNode = nodeId;
+    edge.toSide = side;
+  }
+  debouncedSave();
+}
+
 function addEdge(fromId: string, fromSide: Side, toId: string, toSide: Side): string {
   pushSnapshot();
   const id = generateId();
@@ -300,6 +313,7 @@ export function getCanvasDataStore() {
     updateEdgeLabel,
     setEdgeColor,
     addEdge,
+    updateEdgeEndpoint,
     pushSnapshot,
     popSnapshot,
     yankSelected,
