@@ -152,7 +152,7 @@
   }
 
   .node.dimmed {
-    opacity: 0.7;
+    opacity: 0.5;
   }
 
   .node.group {
