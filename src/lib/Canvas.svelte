@@ -617,7 +617,7 @@
               bind:value={edgeLabelValue}
               onkeydown={(e) => { if (e.key === 'Enter' || e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); finishEdgeLabelEdit(); }}}
               class="edge-label-input"
-              placeholder="label"
+              placeholder=""
             />
           </div>
         {/if}
