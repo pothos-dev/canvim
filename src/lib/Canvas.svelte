@@ -188,9 +188,6 @@
       containerEl.scrollLeft = 0;
       containerEl.scrollTop = 0;
     }
-    // Absorb any key repeats from the Enter/Escape that closed the editor
-    edgeLabelEditJustFinished = true;
-    requestAnimationFrame(() => { edgeLabelEditJustFinished = false; });
   }
 
   // Priority: non-group node > edge > group node
@@ -250,14 +247,17 @@
     return getHints(store.config, store.mode, snap);
   });
 
-  // Brief guard after finishing edge label edit to absorb key repeats
-  let edgeLabelEditJustFinished = false;
-
   function handleKeydown(e: KeyboardEvent) {
-    // Don't process commands when typing in input fields (e.g. edge label editor)
-    if (e.target instanceof HTMLInputElement) return;
-    // Ignore key repeats right after edge label edit closes
-    if (edgeLabelEditJustFinished) return;
+    // Handle edge label editing at the window level — avoids reliance on
+    // stopPropagation from the input's inline handler (broken in WebKitGTK)
+    if (editingEdgeLabel && (e.key === "Enter" || e.key === "Escape")) {
+      e.preventDefault();
+      finishEdgeLabelEdit();
+      return;
+    }
+
+    // Don't process commands when typing in input fields
+    if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
 
     // Prevent browser defaults on Ctrl+key combos we handle
     if (e.key === "Tab") {
@@ -632,7 +632,6 @@
             <input
               bind:this={edgeLabelInputEl}
               bind:value={edgeLabelValue}
-              onkeydown={(e) => { if (e.key === 'Enter' || e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); finishEdgeLabelEdit(); }}}
               class="edge-label-input"
               placeholder=""
             />
