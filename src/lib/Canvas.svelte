@@ -11,9 +11,10 @@
   import type { CanvasNode, Edge, Point, Side } from "./types";
   import { getStore } from "./stores/index";
   import { buildKeyMap, getHints, type CommandContext, type HintSnapshot } from "./commands";
-  import { STEP, ZOOM_STEP, BORDER_ZONE, EDGE_HIT_THRESHOLD, UI_COLORS } from "./constants";
+  import { STEP, BORDER_ZONE, EDGE_HIT_THRESHOLD, UI_COLORS } from "./constants";
   import { marked } from "./markdown";
-  import { pointInNode, attachmentPoint, detectSide, autoSides, distToBezier } from "./geometry";
+  import { pointInNode, attachmentPoint, detectSide, autoSides, distToBezier, nodesInRect } from "./geometry";
+  import { getNodeDisplayText } from "./utils";
 
   const store = getStore();
 
@@ -67,17 +68,10 @@
     panRepeatCount = 0;
   }
 
-  function getCanvasCenter(): Point {
-    return {
-      x: -store.viewport.x / store.viewport.zoom,
-      y: -store.viewport.y / store.viewport.zoom,
-    };
-  }
-
-  const cursorPoint = $derived(inputMode === "mouse" ? mouseCanvasPos : getCanvasCenter());
+  const cursorPoint = $derived(inputMode === "mouse" ? mouseCanvasPos : store.store.getCanvasCenter());
 
   function getNodeAtCenter() {
-    const center = getCanvasCenter();
+    const center = store.getCanvasCenter();
     const nonGroup = store.nodes.find((n) => n.type !== "group" && pointInNode(n, center));
     if (nonGroup) return nonGroup;
     return store.nodes.find((n) => pointInNode(n, center));
@@ -92,7 +86,7 @@
     }
     const fromNode = store.nodes.find(n => n.id === store.connectFromNodeId);
     if (!fromNode) return;
-    const center = getCanvasCenter();
+    const center = store.getCanvasCenter();
     const inside = pointInNode(fromNode, center);
     if (wasInsideFromNode && !inside) {
       store.setConnectFromSide(detectSide(fromNode, center));
@@ -101,16 +95,8 @@
   });
 
   function addNodeAtCenter() {
-    const center = getCanvasCenter();
+    const center = store.getCanvasCenter();
     store.addNode(center.x, center.y);
-  }
-
-  function getNodeDisplayText(node: CanvasNode): string {
-    if (node.type === "text") return node.text;
-    if (node.type === "file") return node.file;
-    if (node.type === "link") return node.url;
-    if (node.type === "group") return node.label ?? "Group";
-    return "";
   }
 
   function fitNodesToContent() {
@@ -205,18 +191,12 @@
 
   const visualEnclosedIds = $derived.by(() => {
     if (store.mode !== "visual" || !store.visualOrigin) return new Set<string>();
-    const end = mouseVisualEnd ?? getCanvasCenter();
+    const end = mouseVisualEnd ?? store.getCanvasCenter();
     const minX = Math.min(store.visualOrigin.x, end.x);
     const minY = Math.min(store.visualOrigin.y, end.y);
     const maxX = Math.max(store.visualOrigin.x, end.x);
     const maxY = Math.max(store.visualOrigin.y, end.y);
-    const ids = new Set<string>();
-    for (const n of store.nodes) {
-      if (n.x >= minX && n.y >= minY && n.x + n.width <= maxX && n.y + n.height <= maxY) {
-        ids.add(n.id);
-      }
-    }
-    return ids;
+    return new Set(nodesInRect(store.nodes, minX, minY, maxX, maxY));
   });
 
   function makeCommandContext(panMultiplier = 1): CommandContext {
@@ -287,7 +267,7 @@
   }
 
   function handleDblClick(e: MouseEvent) {
-    const canvas = screenToCanvas(e.clientX, e.clientY);
+    const canvas = store.screenToCanvas(e.clientX, e.clientY);
     const node = findNodeAt(canvas.x, canvas.y);
     if (!node) return;
     store.selectNode(node.id);
@@ -297,21 +277,7 @@
   function handleWheel(e: WheelEvent) {
     e.preventDefault();
     const delta = e.deltaY > 0 ? -ZOOM_STEP : ZOOM_STEP;
-    const oldZoom = store.viewport.zoom;
-    const newZoom = Math.max(0.1, Math.min(5, oldZoom + delta));
-    if (newZoom === oldZoom) return;
-    const mx = e.clientX - window.innerWidth / 2;
-    const my = e.clientY - window.innerHeight / 2;
-    store.viewport.x = mx - (mx - store.viewport.x) * (newZoom / oldZoom);
-    store.viewport.y = my - (my - store.viewport.y) * (newZoom / oldZoom);
-    store.viewport.zoom = newZoom;
-  }
-
-  function screenToCanvas(screenX: number, screenY: number): { x: number; y: number } {
-    return {
-      x: (screenX - window.innerWidth / 2 - store.viewport.x) / store.viewport.zoom,
-      y: (screenY - window.innerHeight / 2 - store.viewport.y) / store.viewport.zoom,
-    };
+    store.zoomAtPoint(delta, e.clientX, e.clientY);
   }
 
   function snap(v: number): number {
@@ -406,7 +372,7 @@
     }
     if (store.mode === "insert" || store.mode === "connect" || store.mode === "move" || store.mode === "resize" || store.mode === "search" || store.mode === "visual") return;
 
-    const canvas = screenToCanvas(e.clientX, e.clientY);
+    const canvas = store.screenToCanvas(e.clientX, e.clientY);
     const node = findNodeAt(canvas.x, canvas.y);
 
     if (e.button === 0) {
@@ -485,7 +451,7 @@
 
   function handleMouseMove(e: MouseEvent) {
     inputMode = "mouse";
-    mouseCanvasPos = screenToCanvas(e.clientX, e.clientY);
+    mouseCanvasPos = store.screenToCanvas(e.clientX, e.clientY);
     if (!dragging) {
       updateCursor(e);
       return;
@@ -532,7 +498,7 @@
       store.viewport.y = dragging.startViewportY + (e.clientY - dragging.startMouseY);
     } else if (dragging.type === "visual") {
       didDrag = true;
-      const canvas = screenToCanvas(e.clientX, e.clientY);
+      const canvas = store.screenToCanvas(e.clientX, e.clientY);
       mouseVisualEnd = { x: canvas.x, y: canvas.y };
     }
   }
@@ -572,7 +538,7 @@
 
   function updateCursor(e: MouseEvent) {
     if (!containerEl || store.mode === "insert") return;
-    const canvas = screenToCanvas(e.clientX, e.clientY);
+    const canvas = store.screenToCanvas(e.clientX, e.clientY);
     const node = findNodeAt(canvas.x, canvas.y);
     containerEl.style.cursor = node ? "crosshair" : "grab";
   }
@@ -588,11 +554,23 @@
   let containerEl: HTMLDivElement | undefined = $state();
   let searchBarRef: SearchBar | undefined = $state();
 
+  // Pre-sorted nodes: groups first (behind), then regular nodes on top
+  const sortedNodes = $derived([
+    ...store.nodes.filter(n => n.type === "group"),
+    ...store.nodes.filter(n => n.type !== "group"),
+  ]);
+
   const isSearchMode = $derived(store.mode === "search");
   const searchMatchSet = $derived(new Set(store.searchMatchIds));
   const currentMatchId = $derived(
     store.searchMatchIds.length > 0 ? store.searchMatchIds[store.searchCurrentIndex] : null
   );
+
+  function isNodeDimmed(nodeId: string): boolean {
+    return (isSearchMode && store.searchQuery.length > 0 && !searchMatchSet.has(nodeId))
+      || (visualEnclosedIds.size > 0 && !visualEnclosedIds.has(nodeId))
+      || (store.selectedNodeIds.length > 0 && !store.selectedNodeIds.includes(nodeId));
+  }
 
   // Focus search input when entering search mode
   $effect(() => {
@@ -658,7 +636,7 @@
           <ConnectPreview
             {fromNode}
             connectFromSide={store.connectFromSide}
-            center={getCanvasCenter()}
+            center={store.getCanvasCenter()}
             targetNode={getNodeAtCenter()}
           />
         {/if}
@@ -667,11 +645,11 @@
 
     <!-- Visual mode selection rectangle -->
     {#if store.mode === "visual" && store.visualOrigin}
-      <VisualRect origin={store.visualOrigin} end={mouseVisualEnd ?? getCanvasCenter()} />
+      <VisualRect origin={store.visualOrigin} end={mouseVisualEnd ?? store.getCanvasCenter()} />
     {/if}
 
     <!-- Node layer: groups first (behind), then regular nodes on top -->
-    {#each store.nodes.filter(n => n.type === "group") as node (node.id)}
+    {#each sortedNodes as node (node.id)}
       <NodeComponent
         {node}
         editing={store.selectedNodeId === node.id && store.mode === "insert"}
@@ -679,24 +657,7 @@
         hovered={nodeUnderCursor?.id === node.id && store.mode === "normal"}
         connectSource={store.mode === "connect" && store.connectFromNodeId === node.id}
         connectTarget={store.mode === "connect" && nodeUnderCursor?.id === node.id && node.id !== store.connectFromNodeId}
-        dimmed={(isSearchMode && store.searchQuery.length > 0 && !searchMatchSet.has(node.id)) || (visualEnclosedIds.size > 0 && !visualEnclosedIds.has(node.id)) || (store.selectedNodeIds.length > 0 && !store.selectedNodeIds.includes(node.id))}
-        searchQuery={isSearchMode ? store.searchQuery : ""}
-        onSelect={handleNodeClick}
-        onUpdate={store.updateNode}
-        onExitInsert={() => store.exitInsert()}
-        {colors}
-        resolveColor={store.resolveColor}
-      />
-    {/each}
-    {#each store.nodes.filter(n => n.type !== "group") as node (node.id)}
-      <NodeComponent
-        {node}
-        editing={store.selectedNodeId === node.id && store.mode === "insert"}
-        selected={store.selectedNodeIds.includes(node.id) || currentMatchId === node.id}
-        hovered={nodeUnderCursor?.id === node.id && store.mode === "normal"}
-        connectSource={store.mode === "connect" && store.connectFromNodeId === node.id}
-        connectTarget={store.mode === "connect" && nodeUnderCursor?.id === node.id && node.id !== store.connectFromNodeId}
-        dimmed={(isSearchMode && store.searchQuery.length > 0 && !searchMatchSet.has(node.id)) || (visualEnclosedIds.size > 0 && !visualEnclosedIds.has(node.id)) || (store.selectedNodeIds.length > 0 && !store.selectedNodeIds.includes(node.id))}
+        dimmed={isNodeDimmed(node.id)}
         searchQuery={isSearchMode ? store.searchQuery : ""}
         onSelect={handleNodeClick}
         onUpdate={store.updateNode}

@@ -1,4 +1,4 @@
-import type { Viewport } from "../types";
+import type { CanvasNode, Viewport } from "../types";
 import { STEP } from "../constants";
 
 let viewport = $state<Viewport>({ x: 0, y: 0, zoom: 1 });
@@ -31,13 +31,46 @@ function zoom(delta: number) {
   snapViewport();
 }
 
+function zoomAtPoint(delta: number, screenX: number, screenY: number) {
+  const oldZoom = viewport.zoom;
+  const newZoom = Math.max(0.1, Math.min(5, oldZoom + delta));
+  if (newZoom === oldZoom) return;
+  const mx = screenX - window.innerWidth / 2;
+  const my = screenY - window.innerHeight / 2;
+  viewport.x = mx - (mx - viewport.x) * (newZoom / oldZoom);
+  viewport.y = my - (my - viewport.y) * (newZoom / oldZoom);
+  viewport.zoom = newZoom;
+}
+
+function screenToCanvas(screenX: number, screenY: number): { x: number; y: number } {
+  return {
+    x: (screenX - window.innerWidth / 2 - viewport.x) / viewport.zoom,
+    y: (screenY - window.innerHeight / 2 - viewport.y) / viewport.zoom,
+  };
+}
+
+function getCanvasCenter(): { x: number; y: number } {
+  return {
+    x: -viewport.x / viewport.zoom,
+    y: -viewport.y / viewport.zoom,
+  };
+}
+
+function centerOnNode(node: CanvasNode) {
+  centerOn(node.x + node.width / 2, node.y + node.height / 2);
+}
+
 export function getViewportStore() {
   return {
     get viewport() { return viewport; },
     centerOn,
+    centerOnNode,
     pan,
     panGrid,
     zoom,
+    zoomAtPoint,
+    screenToCanvas,
+    getCanvasCenter,
     snapViewport,
   };
 }

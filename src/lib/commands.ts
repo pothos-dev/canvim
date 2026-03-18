@@ -13,14 +13,17 @@ export interface CommandContext {
   finishEdgeLabelEdit: () => void;
   editingEdgeLabel: boolean;
   hideCursor: () => void;
-  /** For connect mode: get node at viewport center */
   getNodeAtCenter: () => CanvasNode | undefined;
-  /** Get canvas center point */
   getCanvasCenter: () => Point;
-  /** Fit selected nodes' height to their content */
   fitNodesToContent: () => void;
-  /** Multiplier for pan acceleration (1 = normal) */
   panMultiplier: number;
+}
+
+/** Plain-value snapshot for hint computation — avoids reactive proxy reads */
+export interface HintSnapshot {
+  hasNode: boolean;
+  hasEdge: boolean;
+  selectedCount: number;
 }
 
 export interface Command {
@@ -32,6 +35,8 @@ export interface Command {
   hidden?: boolean;
   available: (ctx: CommandContext) => boolean;
   execute: (ctx: CommandContext) => void;
+  /** Snapshot-based availability for hints (avoids reactive proxy reads) */
+  hintAvailable?: (snap: HintSnapshot) => boolean;
 }
 
 /** Resolve a dot-path config key to the actual keybinding string */
@@ -42,14 +47,20 @@ export function getCommandKey(cmd: Command, config: Config): string {
   return obj as string;
 }
 
+// --- Shared availability predicates ---
+
 const always = () => true;
 const hasNode = (ctx: CommandContext) => !!ctx.nodeUnderCursor;
-const hasEdge = (ctx: CommandContext) => !!ctx.edgeUnderCursor;
 const hasNodeOrSelected = (ctx: CommandContext) =>
   !!ctx.nodeUnderCursor || ctx.store.selectedNodeIds.length > 0;
 const noMultiSelect = (ctx: CommandContext) => !ctx.store.hasMultiSelect;
-const singleNodeOrEdge = (ctx: CommandContext) =>
-  noMultiSelect(ctx) && (!!ctx.nodeUnderCursor || !!ctx.edgeUnderCursor);
+
+// Snapshot versions
+const hintAlways = () => true;
+const hintHasNodeOrSelected = (snap: HintSnapshot) => snap.hasNode || snap.selectedCount > 0;
+const hintHasNodeOrEdgeOrSelected = (snap: HintSnapshot) => snap.hasNode || snap.hasEdge || snap.selectedCount > 0;
+
+// --- Factories ---
 
 function dirExecutor(dx: number, dy: number, action: "pan" | "move" | "resize" | "connect_pan") {
   return (ctx: CommandContext) => {
@@ -69,7 +80,48 @@ function dirExecutor(dx: number, dy: number, action: "pan" | "move" | "resize" |
   };
 }
 
+/** Generate 8 directional commands (4 hjkl + 4 arrow aliases) for a mode */
+function directionalCommands(
+  mode: Mode,
+  prefix: string,
+  label: string,
+  group: string,
+  configPrefix: string,
+  action: "pan" | "move" | "resize" | "connect_pan",
+): Command[] {
+  const dirs = [
+    { suffix: "left", dx: -1, dy: 0, arrow: "ArrowLeft" },
+    { suffix: "right", dx: 1, dy: 0, arrow: "ArrowRight" },
+    { suffix: "up", dx: 0, dy: -1, arrow: "ArrowUp" },
+    { suffix: "down", dx: 0, dy: 1, arrow: "ArrowDown" },
+  ];
+  const cmds: Command[] = [];
+  for (const d of dirs) {
+    cmds.push({
+      id: `${prefix}_${d.suffix}`,
+      mode,
+      label,
+      group,
+      configKey: `${configPrefix}.${d.suffix}`,
+      available: always,
+      execute: dirExecutor(d.dx, d.dy, action),
+    });
+    cmds.push({
+      id: `${prefix}_${d.suffix}_arrow`,
+      mode,
+      label,
+      group,
+      configKey: `${configPrefix}.${d.suffix}`,
+      hidden: true,
+      available: always,
+      execute: dirExecutor(d.dx, d.dy, action),
+    });
+  }
+  return cmds;
+}
+
 function colorCommand(id: string, configKey: string, colorValue: string): Command {
+  const avail = (ctx: CommandContext) => !!ctx.nodeUnderCursor || !!ctx.edgeUnderCursor || ctx.store.selectedNodeIds.length > 0;
   return {
     id,
     mode: "normal",
@@ -77,7 +129,8 @@ function colorCommand(id: string, configKey: string, colorValue: string): Comman
     group: "color",
     configKey: `normal.${configKey}`,
     hidden: true,
-    available: (ctx) => !!ctx.nodeUnderCursor || !!ctx.edgeUnderCursor || ctx.store.selectedNodeIds.length > 0,
+    available: avail,
+    hintAvailable: hintHasNodeOrEdgeOrSelected,
     execute: (ctx) => {
       ctx.store.pushSnapshot();
       if (ctx.store.selectedNodeIds.length > 0) {
@@ -95,18 +148,47 @@ function colorCommand(id: string, configKey: string, colorValue: string): Comman
   };
 }
 
+// --- Shared executors for aliased commands ---
+
+function executeYank(ctx: CommandContext) {
+  if (ctx.store.selectedNodeIds.length === 0 && ctx.nodeUnderCursor) {
+    ctx.store.selectNode(ctx.nodeUnderCursor.id);
+  }
+  ctx.store.yankSelected();
+}
+
+function executePaste(ctx: CommandContext) {
+  const center = ctx.getCanvasCenter();
+  ctx.store.paste(center.x, center.y);
+}
+
+function executeDelete(ctx: CommandContext) {
+  ctx.store.pushSnapshot();
+  if (ctx.store.selectedNodeIds.length > 0) {
+    for (const id of [...ctx.store.selectedNodeIds]) {
+      ctx.store.removeNode(id);
+    }
+    return;
+  }
+  if (ctx.nodeUnderCursor) {
+    ctx.store.removeNode(ctx.nodeUnderCursor.id);
+  } else if (ctx.edgeUnderCursor) {
+    ctx.store.removeEdge(ctx.edgeUnderCursor.id);
+  } else {
+    const edge = ctx.store.selectedEdgeId
+      ? ctx.store.edges.find(e => e.id === ctx.store.selectedEdgeId)
+      : undefined;
+    if (edge) ctx.store.removeEdge(edge.id);
+  }
+}
+
+const deleteAvailable = (ctx: CommandContext) => !!ctx.nodeUnderCursor || !!ctx.edgeUnderCursor || ctx.store.selectedNodeIds.length > 0;
+
+// --- Command definitions ---
+
 export const commands: Command[] = [
   // === NORMAL MODE ===
-  // Pan
-  { id: "pan_left", mode: "normal", label: "pan", group: "pan", configKey: "normal.pan_left", available: always, execute: dirExecutor(-1, 0, "pan") },
-  { id: "pan_right", mode: "normal", label: "pan", group: "pan", configKey: "normal.pan_right", available: always, execute: dirExecutor(1, 0, "pan") },
-  { id: "pan_up", mode: "normal", label: "pan", group: "pan", configKey: "normal.pan_up", available: always, execute: dirExecutor(0, -1, "pan") },
-  { id: "pan_down", mode: "normal", label: "pan", group: "pan", configKey: "normal.pan_down", available: always, execute: dirExecutor(0, 1, "pan") },
-  // Arrow key aliases (hidden)
-  { id: "pan_left_arrow", mode: "normal", label: "pan", group: "pan", configKey: "normal.pan_left", hidden: true, available: always, execute: dirExecutor(-1, 0, "pan") },
-  { id: "pan_right_arrow", mode: "normal", label: "pan", group: "pan", configKey: "normal.pan_right", hidden: true, available: always, execute: dirExecutor(1, 0, "pan") },
-  { id: "pan_up_arrow", mode: "normal", label: "pan", group: "pan", configKey: "normal.pan_up", hidden: true, available: always, execute: dirExecutor(0, -1, "pan") },
-  { id: "pan_down_arrow", mode: "normal", label: "pan", group: "pan", configKey: "normal.pan_down", hidden: true, available: always, execute: dirExecutor(0, 1, "pan") },
+  ...directionalCommands("normal", "pan", "pan", "pan", "normal.pan", "pan"),
 
   // Zoom
   { id: "zoom_in", mode: "normal", label: "zoom", group: "zoom", configKey: "normal.zoom_in", available: always,
@@ -120,9 +202,10 @@ export const commands: Command[] = [
   { id: "add_node", mode: "normal", label: "add", configKey: "normal.add_node", available: always,
     execute: (ctx) => ctx.addNodeAtCenter() },
 
-  // Select (Enter) — selects node/edge without entering insert mode
+  // Select (Enter)
   { id: "select", mode: "normal", label: "select", configKey: "normal.select",
     available: (ctx) => noMultiSelect(ctx) && (!!ctx.nodeUnderCursor || !!ctx.edgeUnderCursor),
+    hintAvailable: (snap) => snap.selectedCount <= 1 && snap.hasNode,
     execute: (ctx) => {
       if (ctx.nodeUnderCursor) {
         ctx.store.selectNode(ctx.nodeUnderCursor.id);
@@ -135,6 +218,7 @@ export const commands: Command[] = [
   // Insert mode shortcut
   { id: "insert", mode: "normal", label: "insert", configKey: "normal.insert", hidden: true,
     available: (ctx) => noMultiSelect(ctx) && (!!ctx.nodeUnderCursor || !!ctx.edgeUnderCursor),
+    hintAvailable: (snap) => snap.selectedCount <= 1 && snap.hasNode,
     execute: (ctx) => {
       if (ctx.nodeUnderCursor) {
         const implicit = !ctx.store.selectedNodeIds.includes(ctx.nodeUnderCursor.id);
@@ -149,35 +233,13 @@ export const commands: Command[] = [
 
   // Delete
   { id: "delete", mode: "normal", label: "del", configKey: "normal.delete",
-    available: (ctx) => !!ctx.nodeUnderCursor || !!ctx.edgeUnderCursor || ctx.store.selectedNodeIds.length > 0,
-    execute: (ctx) => {
-      ctx.store.pushSnapshot();
-      if (ctx.store.selectedNodeIds.length > 0) {
-        for (const id of [...ctx.store.selectedNodeIds]) {
-          ctx.store.removeNode(id);
-        }
-        return;
-      }
-      if (ctx.nodeUnderCursor) {
-        ctx.store.removeNode(ctx.nodeUnderCursor.id);
-      } else if (ctx.edgeUnderCursor) {
-        ctx.store.removeEdge(ctx.edgeUnderCursor.id);
-      } else {
-        const edge = ctx.store.selectedEdgeId
-          ? ctx.store.edges.find(e => e.id === ctx.store.selectedEdgeId)
-          : undefined;
-        if (edge) ctx.store.removeEdge(edge.id);
-      }
-    },
+    available: deleteAvailable,
+    hintAvailable: hintHasNodeOrEdgeOrSelected,
+    execute: executeDelete,
   },
-  // Delete key alias (hidden)
   { id: "delete_key", mode: "normal", label: "del", configKey: "normal.delete", hidden: true,
-    available: (ctx) => !!ctx.nodeUnderCursor || !!ctx.edgeUnderCursor || ctx.store.selectedNodeIds.length > 0,
-    execute: (ctx) => {
-      // Same as delete command
-      const delCmd = commands.find(c => c.id === "delete")!;
-      delCmd.execute(ctx);
-    },
+    available: deleteAvailable,
+    execute: executeDelete,
   },
 
   // Quit
@@ -187,6 +249,7 @@ export const commands: Command[] = [
   // Enter move mode
   { id: "enter_move", mode: "normal", label: "move", configKey: "normal.enter_move",
     available: hasNodeOrSelected,
+    hintAvailable: hintHasNodeOrSelected,
     execute: (ctx) => {
       if (ctx.store.selectedNodeIds.length === 0 && ctx.nodeUnderCursor) {
         ctx.store.selectNode(ctx.nodeUnderCursor.id);
@@ -200,6 +263,7 @@ export const commands: Command[] = [
   // Enter resize mode
   { id: "enter_resize", mode: "normal", label: "resize", configKey: "normal.enter_resize",
     available: hasNodeOrSelected,
+    hintAvailable: hintHasNodeOrSelected,
     execute: (ctx) => {
       if (ctx.store.selectedNodeIds.length === 0 && ctx.nodeUnderCursor) {
         ctx.store.selectNode(ctx.nodeUnderCursor.id);
@@ -213,12 +277,13 @@ export const commands: Command[] = [
   // Connect
   { id: "connect", mode: "normal", label: "connect", configKey: "normal.connect",
     available: (ctx) => noMultiSelect(ctx) && hasNode(ctx),
+    hintAvailable: (snap) => snap.selectedCount <= 1 && snap.hasNode,
     execute: (ctx) => {
       if (ctx.nodeUnderCursor) ctx.store.enterConnect(ctx.nodeUnderCursor.id);
     },
   },
 
-  // Visual mode (v) — selection rectangle
+  // Visual mode
   { id: "enter_visual", mode: "normal", label: "visual", configKey: "normal.enter_visual",
     available: always,
     execute: (ctx) => {
@@ -230,6 +295,7 @@ export const commands: Command[] = [
   // Deselect all (V)
   { id: "deselect_all", mode: "normal", label: "deselect all", configKey: "normal.deselect_all",
     available: (ctx) => ctx.store.selectedNodeIds.length > 0,
+    hintAvailable: (snap) => snap.selectedCount > 0,
     execute: (ctx) => ctx.store.deselectAll(),
   },
 
@@ -242,35 +308,20 @@ export const commands: Command[] = [
   // Yank / Paste
   { id: "yank", mode: "normal", label: "yank", configKey: "normal.yank",
     available: hasNodeOrSelected,
-    execute: (ctx) => {
-      if (ctx.store.selectedNodeIds.length === 0 && ctx.nodeUnderCursor) {
-        ctx.store.selectNode(ctx.nodeUnderCursor.id);
-      }
-      ctx.store.yankSelected();
-    },
+    hintAvailable: hintHasNodeOrSelected,
+    execute: executeYank,
   },
   { id: "yank_ctrlc", mode: "normal", label: "yank", configKey: "normal.yank", hidden: true,
     available: hasNodeOrSelected,
-    execute: (ctx) => {
-      if (ctx.store.selectedNodeIds.length === 0 && ctx.nodeUnderCursor) {
-        ctx.store.selectNode(ctx.nodeUnderCursor.id);
-      }
-      ctx.store.yankSelected();
-    },
+    execute: executeYank,
   },
   { id: "paste", mode: "normal", label: "paste", configKey: "normal.paste",
     available: (ctx) => ctx.store.canPaste,
-    execute: (ctx) => {
-      const center = ctx.getCanvasCenter();
-      ctx.store.paste(center.x, center.y);
-    },
+    execute: executePaste,
   },
   { id: "paste_ctrlv", mode: "normal", label: "paste", configKey: "normal.paste", hidden: true,
     available: (ctx) => ctx.store.canPaste,
-    execute: (ctx) => {
-      const center = ctx.getCanvasCenter();
-      ctx.store.paste(center.x, center.y);
-    },
+    execute: executePaste,
   },
 
   // Undo / Redo
@@ -293,15 +344,7 @@ export const commands: Command[] = [
   colorCommand("color_clear", "color_clear", ""),
 
   // === MOVE MODE ===
-  { id: "move_left", mode: "move", label: "move", group: "move_dir", configKey: "move.left", available: always, execute: dirExecutor(-1, 0, "move") },
-  { id: "move_right", mode: "move", label: "move", group: "move_dir", configKey: "move.right", available: always, execute: dirExecutor(1, 0, "move") },
-  { id: "move_up", mode: "move", label: "move", group: "move_dir", configKey: "move.up", available: always, execute: dirExecutor(0, -1, "move") },
-  { id: "move_down", mode: "move", label: "move", group: "move_dir", configKey: "move.down", available: always, execute: dirExecutor(0, 1, "move") },
-  // Arrow aliases
-  { id: "move_left_arrow", mode: "move", label: "move", group: "move_dir", configKey: "move.left", hidden: true, available: always, execute: dirExecutor(-1, 0, "move") },
-  { id: "move_right_arrow", mode: "move", label: "move", group: "move_dir", configKey: "move.right", hidden: true, available: always, execute: dirExecutor(1, 0, "move") },
-  { id: "move_up_arrow", mode: "move", label: "move", group: "move_dir", configKey: "move.up", hidden: true, available: always, execute: dirExecutor(0, -1, "move") },
-  { id: "move_down_arrow", mode: "move", label: "move", group: "move_dir", configKey: "move.down", hidden: true, available: always, execute: dirExecutor(0, 1, "move") },
+  ...directionalCommands("move", "move", "move", "move_dir", "move", "move"),
   { id: "move_to_resize", mode: "move", label: "resize", configKey: "normal.enter_resize", hidden: true, available: always,
     execute: (ctx) => { ctx.store.switchToResize(); } },
   { id: "move_exit", mode: "move", label: "exit", configKey: "move.exit", available: always,
@@ -312,15 +355,7 @@ export const commands: Command[] = [
     execute: (ctx) => { ctx.store.exitMove(); ctx.store.enterInsert(); } },
 
   // === RESIZE MODE ===
-  { id: "resize_left", mode: "resize", label: "resize", group: "resize_dir", configKey: "resize.left", available: always, execute: dirExecutor(-1, 0, "resize") },
-  { id: "resize_right", mode: "resize", label: "resize", group: "resize_dir", configKey: "resize.right", available: always, execute: dirExecutor(1, 0, "resize") },
-  { id: "resize_up", mode: "resize", label: "resize", group: "resize_dir", configKey: "resize.up", available: always, execute: dirExecutor(0, -1, "resize") },
-  { id: "resize_down", mode: "resize", label: "resize", group: "resize_dir", configKey: "resize.down", available: always, execute: dirExecutor(0, 1, "resize") },
-  // Arrow aliases
-  { id: "resize_left_arrow", mode: "resize", label: "resize", group: "resize_dir", configKey: "resize.left", hidden: true, available: always, execute: dirExecutor(-1, 0, "resize") },
-  { id: "resize_right_arrow", mode: "resize", label: "resize", group: "resize_dir", configKey: "resize.right", hidden: true, available: always, execute: dirExecutor(1, 0, "resize") },
-  { id: "resize_up_arrow", mode: "resize", label: "resize", group: "resize_dir", configKey: "resize.up", hidden: true, available: always, execute: dirExecutor(0, -1, "resize") },
-  { id: "resize_down_arrow", mode: "resize", label: "resize", group: "resize_dir", configKey: "resize.down", hidden: true, available: always, execute: dirExecutor(0, 1, "resize") },
+  ...directionalCommands("resize", "resize", "resize", "resize_dir", "resize", "resize"),
   { id: "resize_fit", mode: "resize", label: "fit", configKey: "normal.enter_resize", available: always,
     execute: (ctx) => { ctx.fitNodesToContent(); ctx.store.exitResize(); } },
   { id: "resize_to_move", mode: "resize", label: "move", configKey: "normal.enter_move", hidden: true, available: always,
@@ -333,15 +368,7 @@ export const commands: Command[] = [
     execute: (ctx) => { ctx.store.exitResize(); ctx.store.enterInsert(); } },
 
   // === CONNECT MODE ===
-  { id: "connect_left", mode: "connect", label: "move", group: "connect_dir", configKey: "connect.left", available: always, execute: dirExecutor(-1, 0, "connect_pan") },
-  { id: "connect_right", mode: "connect", label: "move", group: "connect_dir", configKey: "connect.right", available: always, execute: dirExecutor(1, 0, "connect_pan") },
-  { id: "connect_up", mode: "connect", label: "move", group: "connect_dir", configKey: "connect.up", available: always, execute: dirExecutor(0, -1, "connect_pan") },
-  { id: "connect_down", mode: "connect", label: "move", group: "connect_dir", configKey: "connect.down", available: always, execute: dirExecutor(0, 1, "connect_pan") },
-  // Arrow aliases
-  { id: "connect_left_arrow", mode: "connect", label: "move", group: "connect_dir", configKey: "connect.left", hidden: true, available: always, execute: dirExecutor(-1, 0, "connect_pan") },
-  { id: "connect_right_arrow", mode: "connect", label: "move", group: "connect_dir", configKey: "connect.right", hidden: true, available: always, execute: dirExecutor(1, 0, "connect_pan") },
-  { id: "connect_up_arrow", mode: "connect", label: "move", group: "connect_dir", configKey: "connect.up", hidden: true, available: always, execute: dirExecutor(0, -1, "connect_pan") },
-  { id: "connect_down_arrow", mode: "connect", label: "move", group: "connect_dir", configKey: "connect.down", hidden: true, available: always, execute: dirExecutor(0, 1, "connect_pan") },
+  ...directionalCommands("connect", "connect", "move", "connect_dir", "connect", "connect_pan"),
   { id: "connect_confirm", mode: "connect", label: "connect", configKey: "connect.confirm", available: always,
     execute: (ctx) => {
       const target = ctx.getNodeAtCenter();
@@ -377,7 +404,7 @@ export const commands: Command[] = [
   { id: "search_ctrlf", mode: "normal", label: "search", configKey: "normal.search", hidden: true,
     available: always, execute: (ctx) => ctx.store.enterSearch() },
 
-  // === SEARCH MODE (navigation phase — after Enter confirms query) ===
+  // === SEARCH MODE ===
   { id: "search_next", mode: "search", label: "next", configKey: "normal.pan_down", hidden: true,
     available: always, execute: (ctx) => ctx.store.searchNext() },
   { id: "search_prev", mode: "search", label: "prev", configKey: "normal.pan_up", hidden: true,
@@ -386,15 +413,7 @@ export const commands: Command[] = [
     available: always, execute: (ctx) => ctx.store.exitSearch() },
 
   // === VISUAL MODE ===
-  { id: "visual_left", mode: "visual", label: "move", group: "visual_dir", configKey: "visual.left", available: always, execute: dirExecutor(-1, 0, "pan") },
-  { id: "visual_right", mode: "visual", label: "move", group: "visual_dir", configKey: "visual.right", available: always, execute: dirExecutor(1, 0, "pan") },
-  { id: "visual_up", mode: "visual", label: "move", group: "visual_dir", configKey: "visual.up", available: always, execute: dirExecutor(0, -1, "pan") },
-  { id: "visual_down", mode: "visual", label: "move", group: "visual_dir", configKey: "visual.down", available: always, execute: dirExecutor(0, 1, "pan") },
-  // Arrow aliases
-  { id: "visual_left_arrow", mode: "visual", label: "move", group: "visual_dir", configKey: "visual.left", hidden: true, available: always, execute: dirExecutor(-1, 0, "pan") },
-  { id: "visual_right_arrow", mode: "visual", label: "move", group: "visual_dir", configKey: "visual.right", hidden: true, available: always, execute: dirExecutor(1, 0, "pan") },
-  { id: "visual_up_arrow", mode: "visual", label: "move", group: "visual_dir", configKey: "visual.up", hidden: true, available: always, execute: dirExecutor(0, -1, "pan") },
-  { id: "visual_down_arrow", mode: "visual", label: "move", group: "visual_dir", configKey: "visual.down", hidden: true, available: always, execute: dirExecutor(0, 1, "pan") },
+  ...directionalCommands("visual", "visual", "move", "visual_dir", "visual", "pan"),
   { id: "visual_confirm", mode: "visual", label: "select", configKey: "visual.confirm", available: always,
     execute: (ctx) => {
       const center = ctx.getCanvasCenter();
@@ -451,8 +470,7 @@ export function buildKeyMap(config: Config): Map<string, Command[]> {
 
   for (const cmd of commands) {
     const modes = Array.isArray(cmd.mode) ? cmd.mode : [cmd.mode];
-    const rawKey = arrowAliases[cmd.id] ?? getCommandKey(cmd, config);
-    const key = rawKey;
+    const key = arrowAliases[cmd.id] ?? getCommandKey(cmd, config);
     for (const m of modes) {
       const mapKey = `${m}:${key}`;
       const existing = map.get(mapKey) ?? [];
@@ -461,57 +479,6 @@ export function buildKeyMap(config: Config): Map<string, Command[]> {
     }
   }
   return map;
-}
-
-/** Plain-value snapshot for hint computation — avoids reactive proxy reads */
-export interface HintSnapshot {
-  hasNode: boolean;
-  hasEdge: boolean;
-  selectedCount: number;
-}
-
-/** Check command availability from plain snapshot values (no reactive proxy) */
-function isAvailableFromSnapshot(cmd: Command, snap: HintSnapshot): boolean {
-  const fn = cmd.available;
-  // We can't call available() with full ctx because it reads reactive proxies.
-  // Instead, replicate the logic with plain values.
-  // The available functions only check: nodeUnderCursor, edgeUnderCursor,
-  // selectedNodeIds.length, and hasMultiSelect (selectedNodeIds.length > 1).
-  const hasNodeOrSelected = snap.hasNode || snap.selectedCount > 0;
-  const noMulti = snap.selectedCount <= 1;
-
-  switch (cmd.id) {
-    case "select":
-    case "insert":
-      return noMulti && snap.hasNode;
-    case "enter_move":
-    case "enter_resize":
-      return hasNodeOrSelected;
-    case "connect":
-      return noMulti && snap.hasNode;
-    case "enter_visual":
-      return true;
-    case "deselect_all":
-      return snap.selectedCount > 0;
-    case "delete":
-    case "delete_key":
-      return snap.hasNode || snap.hasEdge || snap.selectedCount > 0;
-    case "color_red": case "color_orange": case "color_yellow":
-    case "color_green": case "color_cyan": case "color_purple":
-    case "color_clear":
-      return snap.hasNode || snap.hasEdge || snap.selectedCount > 0;
-    case "search":
-      return true;
-    case "yank":
-      return hasNodeOrSelected;
-    case "paste":
-      return true; // Can't check clipboard in snapshot, always show hint
-    case "undo":
-    case "redo":
-      return true; // Can't check history in snapshot, always show hint
-    default:
-      return true; // pan, zoom, add_node, quit, mode exits, etc.
-  }
 }
 
 /** Generate hint strings for the status bar using a plain snapshot */
@@ -523,13 +490,13 @@ export function getHints(config: Config, mode: Mode, snap: HintSnapshot): string
     if (cmd.hidden) continue;
     const modes = Array.isArray(cmd.mode) ? cmd.mode : [cmd.mode];
     if (!modes.includes(mode)) continue;
-    if (!isAvailableFromSnapshot(cmd, snap)) continue;
+    // Use per-command hintAvailable if defined, otherwise assume available
+    if (cmd.hintAvailable && !cmd.hintAvailable(snap)) continue;
 
     const groupKey = cmd.group ?? cmd.id;
     if (seen.has(groupKey)) continue;
     seen.add(groupKey);
 
-    // Collect all keys for this group
     const keys: string[] = [];
     for (const c of commands) {
       if (c.hidden) continue;

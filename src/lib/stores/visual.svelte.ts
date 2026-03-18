@@ -1,4 +1,5 @@
 import type { CanvasNode } from "../types";
+import { nodesInRect } from "../geometry";
 import { getModeStore } from "./mode.svelte";
 import { getSelectionStore } from "./selection.svelte";
 
@@ -15,12 +16,7 @@ function confirmVisual(currentX: number, currentY: number, nodes: CanvasNode[]) 
   const minY = Math.min(visualOrigin.y, currentY);
   const maxX = Math.max(visualOrigin.x, currentX);
   const maxY = Math.max(visualOrigin.y, currentY);
-  const ids: string[] = [];
-  for (const n of nodes) {
-    if (n.x >= minX && n.y >= minY && n.x + n.width <= maxX && n.y + n.height <= maxY) {
-      ids.push(n.id);
-    }
-  }
+  const ids = nodesInRect(nodes, minX, minY, maxX, maxY);
   const sel = getSelectionStore();
   sel.selectedNodeIds = ids;
   sel.selectedEdgeId = null;

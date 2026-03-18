@@ -66,6 +66,17 @@ export function bezierMidpoint(from: Point, to: Point, fromSide: Side, toSide: S
   };
 }
 
+/** Return IDs of nodes fully enclosed within the given rectangle */
+export function nodesInRect(nodes: CanvasNode[], minX: number, minY: number, maxX: number, maxY: number): string[] {
+  const ids: string[] = [];
+  for (const n of nodes) {
+    if (n.x >= minX && n.y >= minY && n.x + n.width <= maxX && n.y + n.height <= maxY) {
+      ids.push(n.id);
+    }
+  }
+  return ids;
+}
+
 export function distToBezier(from: Point, to: Point, fromSide: Side, toSide: Side, test: Point): number {
   const { c1, c2 } = bezierControlPoints(from, to, fromSide, toSide);
   let minD = Infinity;

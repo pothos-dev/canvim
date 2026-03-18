@@ -1,5 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import type { Canvas, CanvasNode, Config, Edge, Side } from "../types";
+import { getNodeText } from "../utils";
 import { getModeStore } from "./mode.svelte";
 import { getSelectionStore } from "./selection.svelte";
 import { getConnectStore } from "./connect.svelte";
@@ -260,10 +261,6 @@ function paste(centerX: number, centerY: number) {
   debouncedSave();
 }
 
-function centerOnNode(node: CanvasNode) {
-  getViewportStore().centerOn(node.x + node.width / 2, node.y + node.height / 2);
-}
-
 /** Map canvas spec color preset "1"-"6" to config color values */
 function resolveColor(preset: string | undefined): string | undefined {
   if (!preset || !config) return undefined;
@@ -276,14 +273,6 @@ function resolveColor(preset: string | undefined): string | undefined {
     "6": config.colors.purple,
   };
   return map[preset] ?? preset;
-}
-
-function getNodeText(node: CanvasNode): string {
-  if (node.type === "text") return node.text;
-  if (node.type === "file") return node.file;
-  if (node.type === "link") return node.url;
-  if (node.type === "group") return node.label ?? "";
-  return "";
 }
 
 export function getCanvasDataStore() {
@@ -317,7 +306,5 @@ export function getCanvasDataStore() {
     get canUndo() { return history.length > 0; },
     get canRedo() { return future.length > 0; },
     resolveColor,
-    getNodeText,
-    centerOnNode,
   };
 }

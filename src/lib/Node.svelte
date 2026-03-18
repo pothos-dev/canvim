@@ -4,6 +4,7 @@
   import MarkdownEditor from "./MarkdownEditor.svelte";
   import type { CanvasNode, ConfigColors } from "./types";
   import { UI_COLORS } from "./constants";
+  import { getNodeDisplayText } from "./utils";
 
   interface Props {
     node: CanvasNode;
@@ -35,14 +36,6 @@
     wasEditing = editing;
   });
 
-  function getDisplayText(): string {
-    if (node.type === "text") return node.text;
-    if (node.type === "file") return node.file;
-    if (node.type === "link") return node.url;
-    if (node.type === "group") return node.label ?? "Group";
-    return "";
-  }
-
   function highlightSearchMatches(html: string, query: string): string {
     if (!query) return html;
     // Replace only in text content (outside HTML tags)
@@ -56,7 +49,7 @@
   }
 
   function getRenderedHtml(): string {
-    let html = marked.parse(getDisplayText(), { async: false }) as string;
+    let html = marked.parse(getNodeDisplayText(node), { async: false }) as string;
     if (searchQuery) html = highlightSearchMatches(html, searchQuery);
     return html;
   }

@@ -52,9 +52,13 @@ export function getStore() {
     // Viewport
     get viewport() { return vp.viewport; },
     centerOn: vp.centerOn,
+    centerOnNode: vp.centerOnNode,
     pan: vp.pan,
     panGrid: vp.panGrid,
     zoom: vp.zoom,
+    zoomAtPoint: vp.zoomAtPoint,
+    screenToCanvas: vp.screenToCanvas,
+    getCanvasCenter: vp.getCanvasCenter,
 
     // Mode
     get mode() { return mode.mode; },
@@ -73,7 +77,7 @@ export function getStore() {
     get hasMultiSelect() { return sel.selectedNodeIds.length > 1; },
     get selectedEdgeId() { return sel.selectedEdgeId; },
     selectNode: sel.selectNode,
-    cycleNode(direction: 1 | -1) { sel.cycleNode(direction, data.nodes, data.centerOnNode); },
+    cycleNode(direction: 1 | -1) { sel.cycleNode(direction, data.nodes, vp.centerOnNode); },
     toggleNodeSelection: sel.toggleNodeSelection,
     deselectAll: sel.deselectAll,
     selectEdge: sel.selectEdge,

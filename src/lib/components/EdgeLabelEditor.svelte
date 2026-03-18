@@ -1,5 +1,6 @@
 <script lang="ts">
-  import type { CanvasNode, Edge } from "../types";
+  import type { CanvasNode, Edge, Side } from "../types";
+  import { attachmentPoint, autoSides, bezierMidpoint } from "../geometry";
 
   interface Props {
     edge: Edge;
@@ -13,15 +14,24 @@
   let { edge, fromNode, toNode, value, onValueChange, onFinish }: Props = $props();
   let inputEl: HTMLInputElement | undefined = $state();
 
-  const mx = $derived((fromNode.x + fromNode.width / 2 + toNode.x + toNode.width / 2) / 2);
-  const my = $derived((fromNode.y + fromNode.height / 2 + toNode.y + toNode.height / 2) / 2);
+  const resolvedSides = $derived.by(() => {
+    const fs = edge.fromSide as Side | undefined;
+    const ts = edge.toSide as Side | undefined;
+    if (fs && ts) return { fromSide: fs, toSide: ts };
+    const auto = autoSides(fromNode, toNode);
+    return { fromSide: fs ?? auto.fromSide, toSide: ts ?? auto.toSide };
+  });
+
+  const from = $derived(attachmentPoint(fromNode, resolvedSides.fromSide));
+  const to = $derived(attachmentPoint(toNode, resolvedSides.toSide));
+  const mid = $derived(bezierMidpoint(from, to, resolvedSides.fromSide, resolvedSides.toSide));
 
   export function focus() {
     requestAnimationFrame(() => inputEl?.focus());
   }
 </script>
 
-<div class="edge-label-editor" style="left: {mx}px; top: {my}px;">
+<div class="edge-label-editor" style="left: {mid.x}px; top: {mid.y}px;">
   <input
     bind:this={inputEl}
     bind:value
