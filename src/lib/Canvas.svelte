@@ -32,8 +32,8 @@
   const commandKeyMap = $derived(store.config ? buildKeyMap(store.config) : new Map());
 
   // Pan acceleration: holding a direction key ramps up the multiplier
-  const PAN_ACCEL_MAX = 5;
-  const PAN_ACCEL_RAMP = 8; // repeats to reach max
+  const PAN_ACCEL_MAX = 4;
+  const PAN_ACCEL_RAMP = 16; // repeats to reach max
   let panRepeatKey = "";
   let panRepeatCount = 0;
 
