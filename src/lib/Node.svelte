@@ -94,13 +94,6 @@
     width: {node.width}px;
     height: {node.height}px;
     --selected: {UI_COLORS.selected};
-    --selected-shadow: {UI_COLORS.selected_shadow};
-    --selected-hover-shadow: {UI_COLORS.selected_hover_shadow};
-    --hover-shadow: {UI_COLORS.hover_shadow};
-    --editing-shadow: {UI_COLORS.editing_shadow};
-    --editing-border: {UI_COLORS.editing_border};
-    --connect-source: {UI_COLORS.connect_source};
-    --connect-target: {UI_COLORS.connect_target};
     --connect-color: {UI_COLORS.connect_color};
     --search-match: {UI_COLORS.search_match};
     --code-bg: {UI_COLORS.code_bg};
@@ -141,31 +134,30 @@
 
   .node.selected {
     opacity: 1;
-    box-shadow: 0 0 0 2px var(--selected), 0 4px 16px var(--selected-shadow);
+    outline: 2px solid var(--selected);
+    outline-offset: -2px;
   }
 
   .node.hovered {
     opacity: 1;
-    box-shadow: 0 4px 20px var(--hover-shadow);
-  }
-
-  .node.selected.hovered {
-    box-shadow: 0 0 0 2px var(--selected), 0 4px 20px var(--selected-hover-shadow);
   }
 
   .node.editing {
     opacity: 1;
-    box-shadow: 0 6px 24px var(--editing-shadow), 0 0 0 1px var(--editing-border);
+    outline: 2px solid var(--selected);
+    outline-offset: -2px;
   }
 
   .node.connect-source {
     opacity: 1;
-    box-shadow: 0 0 12px var(--connect-source), 0 0 0 2px var(--connect-color);
+    outline: 2px solid var(--connect-color);
+    outline-offset: -2px;
   }
 
   .node.connect-target {
     opacity: 1;
-    box-shadow: 0 0 16px var(--connect-target), 0 0 0 2px var(--connect-color);
+    outline: 2px solid var(--connect-color);
+    outline-offset: -2px;
   }
 
   .node.dimmed {

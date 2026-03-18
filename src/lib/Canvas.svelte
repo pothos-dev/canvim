@@ -575,7 +575,7 @@
         hovered={nodeUnderCursor?.id === node.id && store.mode === "normal"}
         connectSource={store.mode === "connect" && store.connectFromNodeId === node.id}
         connectTarget={store.mode === "connect" && nodeUnderCursor?.id === node.id && node.id !== store.connectFromNodeId}
-        dimmed={(isSearchMode && store.searchQuery.length > 0 && !searchMatchSet.has(node.id)) || (visualEnclosedIds.size > 0 && !visualEnclosedIds.has(node.id))}
+        dimmed={(isSearchMode && store.searchQuery.length > 0 && !searchMatchSet.has(node.id)) || (visualEnclosedIds.size > 0 && !visualEnclosedIds.has(node.id)) || (store.selectedNodeIds.length > 0 && !store.selectedNodeIds.includes(node.id))}
         searchQuery={isSearchMode ? store.searchQuery : ""}
         onSelect={handleNodeClick}
         onUpdate={store.updateNode}
@@ -592,7 +592,7 @@
         hovered={nodeUnderCursor?.id === node.id && store.mode === "normal"}
         connectSource={store.mode === "connect" && store.connectFromNodeId === node.id}
         connectTarget={store.mode === "connect" && nodeUnderCursor?.id === node.id && node.id !== store.connectFromNodeId}
-        dimmed={(isSearchMode && store.searchQuery.length > 0 && !searchMatchSet.has(node.id)) || (visualEnclosedIds.size > 0 && !visualEnclosedIds.has(node.id))}
+        dimmed={(isSearchMode && store.searchQuery.length > 0 && !searchMatchSet.has(node.id)) || (visualEnclosedIds.size > 0 && !visualEnclosedIds.has(node.id)) || (store.selectedNodeIds.length > 0 && !store.selectedNodeIds.includes(node.id))}
         searchQuery={isSearchMode ? store.searchQuery : ""}
         onSelect={handleNodeClick}
         onUpdate={store.updateNode}
