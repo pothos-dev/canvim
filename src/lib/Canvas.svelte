@@ -84,7 +84,7 @@
       wasInsideFromNode = false;
       return;
     }
-    const fromNode = store.nodes.find(n => n.id === store.connectFromNodeId);
+    const fromNode = store.findNode(store.connectFromNodeId!);
     if (!fromNode) return;
     const center = store.getCanvasCenter();
     const inside = pointInNode(fromNode, center);
@@ -117,7 +117,7 @@
 
     store.pushSnapshot();
     for (const id of ids) {
-      const node = store.nodes.find(n => n.id === id);
+      const node = store.findNode(id);
       if (!node) continue;
       measure.style.width = `${node.width}px`;
       const html = marked.parse(getNodeDisplayText(node), { async: false }) as string;
@@ -129,8 +129,8 @@
   }
 
   function distToEdge(edge: Edge, point: Point): number {
-    const fromNode = store.nodes.find(n => n.id === edge.fromNode);
-    const toNode = store.nodes.find(n => n.id === edge.toNode);
+    const fromNode = store.findNode(edge.fromNode);
+    const toNode = store.findNode(edge.toNode);
     if (!fromNode || !toNode) return Infinity;
 
     const auto = autoSides(fromNode, toNode);
@@ -328,7 +328,7 @@
 
     const idSet = new Set(baseIds);
     for (const id of baseIds) {
-      const node = store.nodes.find(n => n.id === id);
+      const node = store.findNode(id);
       if (node?.type === "group") {
         for (const child of store.nodes) {
           if (child.id !== id && !idSet.has(child.id) && isContainedInGroup(child, node)) {
@@ -339,7 +339,7 @@
     }
 
     return [...idSet].map(id => {
-      const n = store.nodes.find(nn => nn.id === id)!;
+      const n = store.findNode(id)!;
       return { id, startX: n.x, startY: n.y, startW: n.width, startH: n.height };
     });
   }
@@ -349,7 +349,7 @@
       ? store.selectedNodeIds
       : [anchorId];
     return ids.map(id => {
-      const n = store.nodes.find(nn => nn.id === id)!;
+      const n = store.findNode(id)!;
       return { id, startX: n.x, startY: n.y, startW: n.width, startH: n.height };
     });
   }
@@ -464,7 +464,7 @@
     if (dragging.type === "move") {
       if (Math.abs(dx) > 2 || Math.abs(dy) > 2) didDrag = true;
       for (const dn of dragging.nodes) {
-        const node = store.nodes.find(n => n.id === dn.id);
+        const node = store.findNode(dn.id);
         if (!node) continue;
         node.x = snap(dn.startX + dx);
         node.y = snap(dn.startY + dy);
@@ -473,7 +473,7 @@
       if (Math.abs(dx) > 2 || Math.abs(dy) > 2) didDrag = true;
       const edge = dragging.resizeEdge;
       for (const dn of dragging.nodes) {
-        const node = store.nodes.find(n => n.id === dn.id);
+        const node = store.findNode(dn.id);
         if (!node) continue;
         if (edge.right) {
           node.width = Math.max(STEP * 2, snap(dn.startW + dx));
@@ -509,7 +509,7 @@
     if (dragging.type === "move" || dragging.type === "resize") {
       let anyChanged = false;
       for (const dn of dragging.nodes) {
-        const node = store.nodes.find(n => n.id === dn.id);
+        const node = store.findNode(dn.id);
         if (node && (node.x !== dn.startX || node.y !== dn.startY || node.width !== dn.startW || node.height !== dn.startH)) {
           anyChanged = true;
           break;
@@ -631,7 +631,7 @@
         />
       {/each}
       {#if store.mode === "connect" && store.connectFromNodeId}
-        {@const fromNode = store.nodes.find(n => n.id === store.connectFromNodeId)}
+        {@const fromNode = store.findNode(store.connectFromNodeId!)}
         {#if fromNode}
           <ConnectPreview
             {fromNode}
@@ -671,8 +671,8 @@
     {#if editingEdgeLabel && store.selectedEdgeId}
       {@const selEdge = store.edges.find(e => e.id === store.selectedEdgeId)}
       {#if selEdge}
-        {@const fn = store.nodes.find(n => n.id === selEdge.fromNode)}
-        {@const tn = store.nodes.find(n => n.id === selEdge.toNode)}
+        {@const fn = store.findNode(selEdge.fromNode)}
+        {@const tn = store.findNode(selEdge.toNode)}
         {#if fn && tn}
           <EdgeLabelEditor
             bind:this={edgeLabelEditorRef}

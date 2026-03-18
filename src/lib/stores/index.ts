@@ -48,6 +48,7 @@ export function getStore() {
     get canUndo() { return data.canUndo; },
     get canRedo() { return data.canRedo; },
     resolveColor: data.resolveColor,
+    findNode: data.findNode,
 
     // Viewport
     get viewport() { return vp.viewport; },

@@ -376,7 +376,7 @@ export const commands: Command[] = [
         if (!target) ctx.store.exitConnect();
         return;
       }
-      const fromNode = ctx.store.nodes.find(n => n.id === ctx.store.connectFromNodeId);
+      const fromNode = ctx.store.findNode(ctx.store.connectFromNodeId!);
       if (!fromNode) { ctx.store.exitConnect(); return; }
       const fromSide = ctx.store.connectFromSide ?? autoSides(fromNode, target).fromSide;
       const center = ctx.getCanvasCenter();

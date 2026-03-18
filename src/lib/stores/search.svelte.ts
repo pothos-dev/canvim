@@ -42,25 +42,25 @@ function setSearchQuery(query: string) {
     .map(n => n.id);
   searchCurrentIndex = 0;
   if (searchMatchIds.length > 0) {
-    const node = nodes.find(n => n.id === searchMatchIds[0]);
-    if (node) getViewportStore().centerOnNode(node);
+    centerOnMatch();
   }
+}
+
+function centerOnMatch() {
+  const node = getNodes().find(n => n.id === searchMatchIds[searchCurrentIndex]);
+  if (node) getViewportStore().centerOnNode(node);
 }
 
 function searchNext() {
   if (searchMatchIds.length === 0) return;
   searchCurrentIndex = (searchCurrentIndex + 1) % searchMatchIds.length;
-  const nodes = getNodes();
-  const node = nodes.find(n => n.id === searchMatchIds[searchCurrentIndex]);
-  if (node) getViewportStore().centerOnNode(node);
+  centerOnMatch();
 }
 
 function searchPrev() {
   if (searchMatchIds.length === 0) return;
   searchCurrentIndex = (searchCurrentIndex - 1 + searchMatchIds.length) % searchMatchIds.length;
-  const nodes = getNodes();
-  const node = nodes.find(n => n.id === searchMatchIds[searchCurrentIndex]);
-  if (node) getViewportStore().centerOnNode(node);
+  centerOnMatch();
 }
 
 function confirmSearch() {

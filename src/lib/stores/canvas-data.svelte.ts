@@ -118,8 +118,12 @@ function addNode(x: number, y: number): string {
   return id;
 }
 
+function findNode(id: string): CanvasNode | undefined {
+  return nodes.find((n) => n.id === id);
+}
+
 function updateNode(id: string, text: string) {
-  const node = nodes.find((n) => n.id === id);
+  const node = findNode(id);
   if (node && node.type === "text") {
     node.text = text;
     debouncedSave();
@@ -139,7 +143,7 @@ function removeNode(id: string) {
 }
 
 function withNode(id: string, fn: (node: CanvasNode) => void) {
-  const node = nodes.find((n) => n.id === id);
+  const node = findNode(id);
   if (node) { fn(node); debouncedSave(); }
 }
 
@@ -306,5 +310,6 @@ export function getCanvasDataStore() {
     get canUndo() { return history.length > 0; },
     get canRedo() { return future.length > 0; },
     resolveColor,
+    findNode,
   };
 }
