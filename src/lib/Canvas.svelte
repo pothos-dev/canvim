@@ -483,20 +483,7 @@
     containerEl?.focus();
     // Must add wheel listener with passive:false to allow preventDefault on pinch-zoom
     containerEl?.addEventListener("wheel", handleWheel, { passive: false });
-    // WebKitGTK scrolls the container when a focused element (e.g. edge label input)
-    // is removed from DOM, even with overflow:hidden. Always reset to 0 since we
-    // use CSS transforms for panning, never container scroll.
-    const onScroll = () => {
-      if (containerEl && (containerEl.scrollLeft !== 0 || containerEl.scrollTop !== 0)) {
-        containerEl.scrollLeft = 0;
-        containerEl.scrollTop = 0;
-      }
-    };
-    containerEl?.addEventListener("scroll", onScroll);
-    return () => {
-      containerEl?.removeEventListener("wheel", handleWheel);
-      containerEl?.removeEventListener("scroll", onScroll);
-    };
+    return () => containerEl?.removeEventListener("wheel", handleWheel);
   });
 </script>
 
@@ -697,7 +684,7 @@
   .canvas-container {
     width: 100vw;
     height: 100vh;
-    overflow: hidden;
+    overflow: clip;
     position: relative;
     cursor: crosshair; /* default, overridden dynamically */
   }
