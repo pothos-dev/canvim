@@ -30,8 +30,8 @@ export const UI_COLORS = {
   subtle_border: "rgba(255, 255, 255, 0.1)",
 
   // Loading page (before config is available)
-  loading_bg: "#0f172a",
-  loading_text: "#cbd5e1",
+  loading_bg: "#171717",
+  loading_text: "#d4d4d4",
   error_text: "#f38ba8",
 } as const;
 

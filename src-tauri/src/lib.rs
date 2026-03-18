@@ -40,15 +40,15 @@ const DEFAULT_CONFIG: &str = r##"# Canvim configuration
 # Uncomment and modify values to override defaults.
 
 # [colors]
-# background = "#0f172a"
-# node_background = "#1e293b"
-# node_border = "#334155"
-# edge = "#475569"
-# text = "#cbd5e1"
-# crosshair = "rgba(148, 163, 184, 0.3)"
-# dot_grid = "rgba(148, 163, 184, 0.08)"
-# status_bar_bg = "#020617"
-# status_bar_text = "#64748b"
+# background = "#171717"
+# node_background = "#262626"
+# node_border = "#404040"
+# edge = "#525252"
+# text = "#d4d4d4"
+# crosshair = "rgba(163, 163, 163, 0.3)"
+# dot_grid = "rgba(163, 163, 163, 0.08)"
+# status_bar_bg = "#0a0a0a"
+# status_bar_text = "#737373"
 # node_font = "system-ui, sans-serif"
 # node_font_size = 14
 # red = "#fb464c"
@@ -125,15 +125,15 @@ const DEFAULT_CONFIG: &str = r##"# Canvim configuration
 "##;
 
 config_struct!(ConfigColors {
-    background: String = "#0f172a".into(),
-    node_background: String = "#1e293b".into(),
-    node_border: String = "#334155".into(),
-    edge: String = "#475569".into(),
-    text: String = "#cbd5e1".into(),
-    crosshair: String = "rgba(148, 163, 184, 0.3)".into(),
-    dot_grid: String = "rgba(148, 163, 184, 0.08)".into(),
-    status_bar_bg: String = "#020617".into(),
-    status_bar_text: String = "#64748b".into(),
+    background: String = "#171717".into(),
+    node_background: String = "#262626".into(),
+    node_border: String = "#404040".into(),
+    edge: String = "#525252".into(),
+    text: String = "#d4d4d4".into(),
+    crosshair: String = "rgba(163, 163, 163, 0.3)".into(),
+    dot_grid: String = "rgba(163, 163, 163, 0.08)".into(),
+    status_bar_bg: String = "#0a0a0a".into(),
+    status_bar_text: String = "#737373".into(),
     node_font: String = "system-ui, sans-serif".into(),
     node_font_size: u32 = 14,
     red: String = "#fb464c".into(),
