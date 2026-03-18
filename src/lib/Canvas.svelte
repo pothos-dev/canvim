@@ -161,6 +161,23 @@
   const nodeUnderCursor = $derived(getNodeAtCenter());
   const edgeUnderCursor = $derived(nodeUnderCursor ? undefined : getEdgeAtCenter());
 
+  // Nodes fully enclosed by the visual selection rectangle
+  const visualEnclosedIds = $derived.by(() => {
+    if (store.mode !== "visual" || !store.visualOrigin) return new Set<string>();
+    const center = getCanvasCenter();
+    const minX = Math.min(store.visualOrigin.x, center.x);
+    const minY = Math.min(store.visualOrigin.y, center.y);
+    const maxX = Math.max(store.visualOrigin.x, center.x);
+    const maxY = Math.max(store.visualOrigin.y, center.y);
+    const ids = new Set<string>();
+    for (const n of store.nodes) {
+      if (n.x >= minX && n.y >= minY && n.x + n.width <= maxX && n.y + n.height <= maxY) {
+        ids.add(n.id);
+      }
+    }
+    return ids;
+  });
+
   function makeCommandContext(): CommandContext {
     return {
       store,
@@ -530,7 +547,7 @@
         hovered={nodeUnderCursor?.id === node.id && store.mode === "normal"}
         connectSource={store.mode === "connect" && store.connectFromNodeId === node.id}
         connectTarget={store.mode === "connect" && nodeUnderCursor?.id === node.id && node.id !== store.connectFromNodeId}
-        dimmed={isSearchMode && store.searchQuery.length > 0 && !searchMatchSet.has(node.id)}
+        dimmed={(isSearchMode && store.searchQuery.length > 0 && !searchMatchSet.has(node.id)) || (visualEnclosedIds.size > 0 && !visualEnclosedIds.has(node.id))}
         searchQuery={isSearchMode ? store.searchQuery : ""}
         onSelect={handleNodeClick}
         onUpdate={store.updateNode}
@@ -547,7 +564,7 @@
         hovered={nodeUnderCursor?.id === node.id && store.mode === "normal"}
         connectSource={store.mode === "connect" && store.connectFromNodeId === node.id}
         connectTarget={store.mode === "connect" && nodeUnderCursor?.id === node.id && node.id !== store.connectFromNodeId}
-        dimmed={isSearchMode && store.searchQuery.length > 0 && !searchMatchSet.has(node.id)}
+        dimmed={(isSearchMode && store.searchQuery.length > 0 && !searchMatchSet.has(node.id)) || (visualEnclosedIds.size > 0 && !visualEnclosedIds.has(node.id))}
         searchQuery={isSearchMode ? store.searchQuery : ""}
         onSelect={handleNodeClick}
         onUpdate={store.updateNode}

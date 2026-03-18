@@ -477,10 +477,10 @@ function confirmVisual(currentX: number, currentY: number) {
   const minY = Math.min(visualOrigin.y, currentY);
   const maxX = Math.max(visualOrigin.x, currentX);
   const maxY = Math.max(visualOrigin.y, currentY);
-  // Select all nodes that overlap the rectangle
+  // Select all nodes fully enclosed in the rectangle
   const ids: string[] = [];
   for (const n of nodes) {
-    if (n.x + n.width > minX && n.x < maxX && n.y + n.height > minY && n.y < maxY) {
+    if (n.x >= minX && n.y >= minY && n.x + n.width <= maxX && n.y + n.height <= maxY) {
       ids.push(n.id);
     }
   }
