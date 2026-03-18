@@ -28,20 +28,27 @@
 </script>
 
 <div class="status-bar" style="background: {statusBarBg}; color: {statusBarText};">
-  <span class="mode-indicator" style="color: {modeColor}; border-color: {modeColor};">
-    {modeLabel}
-  </span>
-  <span>
-    ({Math.round(-viewport.x / viewport.zoom)}, {Math.round(-viewport.y / viewport.zoom)})
-  </span>
-  <span>{Math.round(viewport.zoom * 100)}%</span>
-  <span>{nodeCount} nodes</span>
-  {#if hints.length > 0}
-    <span class="hint">{hints.join(" ")}</span>
-  {/if}
-  {#if filePath}
-    <span class="filepath">{filePath}</span>
-  {/if}
+  <div class="status-row top-row">
+    {#if hints.length > 0}
+      <span class="hint">{hints.join(" ")}</span>
+    {/if}
+  </div>
+  <div class="status-row bottom-row">
+    <span class="mode-indicator" style="color: {modeColor}; border-color: {modeColor};">
+      {modeLabel}
+    </span>
+    <span>
+      ({Math.round(-viewport.x / viewport.zoom)}, {Math.round(-viewport.y / viewport.zoom)})
+    </span>
+    <span>{Math.round(viewport.zoom * 100)}%</span>
+    <span>{nodeCount} nodes</span>
+    {#if hints.length > 0}
+      <span class="hint wide-only">{hints.join(" ")}</span>
+    {/if}
+    {#if filePath}
+      <span class="filepath">{filePath}</span>
+    {/if}
+  </div>
 </div>
 
 <style>
@@ -50,14 +57,37 @@
     bottom: 0;
     left: 0;
     right: 0;
+    display: flex;
+    flex-direction: column;
+    font-size: 12px;
+    font-family: monospace;
+    z-index: 200;
+  }
+
+  .status-row {
     height: 28px;
     display: flex;
     align-items: center;
     gap: 16px;
     padding: 0 12px;
-    font-size: 12px;
-    font-family: monospace;
-    z-index: 200;
+  }
+
+  .top-row {
+    display: none;
+  }
+
+  .wide-only {
+    display: inline;
+  }
+
+  @media (max-width: 1199px) {
+    .top-row {
+      display: flex;
+    }
+
+    .wide-only {
+      display: none;
+    }
   }
 
   .mode-indicator {
