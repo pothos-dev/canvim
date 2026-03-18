@@ -390,6 +390,16 @@
     });
   }
 
+  function collectDragNodesNoChildren(anchorId: string): DragNodeStart[] {
+    const ids = store.selectedNodeIds.includes(anchorId) && store.selectedNodeIds.length > 1
+      ? store.selectedNodeIds
+      : [anchorId];
+    return ids.map(id => {
+      const n = store.nodes.find(nn => nn.id === id)!;
+      return { id, startX: n.x, startY: n.y, startW: n.width, startH: n.height };
+    });
+  }
+
   function handleMouseDown(e: MouseEvent) {
     // Middle mouse always pans, regardless of mode
     if (e.button === 1) {
@@ -468,7 +478,7 @@
           type: "resize",
           startMouseX: e.clientX,
           startMouseY: e.clientY,
-          nodes: collectDragNodes(node.id),
+          nodes: collectDragNodesNoChildren(node.id),
           resizeEdge,
           startViewportX: 0,
           startViewportY: 0,
