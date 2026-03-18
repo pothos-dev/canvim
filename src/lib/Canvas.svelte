@@ -116,6 +116,12 @@
       measure.style.width = `${node.width}px`;
       const html = marked.parse(getNodeDisplayText(node), { async: false }) as string;
       measure.innerHTML = html;
+      // Match node-content styles: p margin and last-child removal
+      for (const p of measure.querySelectorAll("p")) {
+        (p as HTMLElement).style.margin = "0 0 0.5em";
+      }
+      const lastP = measure.querySelector("p:last-child");
+      if (lastP) (lastP as HTMLElement).style.marginBottom = "0";
       const height = Math.ceil(measure.scrollHeight / STEP) * STEP;
       store.setNodeSize(id, node.width, height);
     }
