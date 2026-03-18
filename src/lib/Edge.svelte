@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { CanvasNode, Edge, Side } from "./types";
-  import { attachmentPoint, autoSides, bezierPath } from "./geometry";
+  import { attachmentPoint, autoSides, bezierPath, bezierMidpoint } from "./geometry";
 
   interface Props {
     edge: Edge;
@@ -48,7 +48,7 @@
 
   const path = $derived(bezierPath(from, to, resolvedSides.fromSide, resolvedSides.toSide));
   const arrowAngle = $derived(sideAngles[resolvedSides.toSide] + 180);
-  const midpoint = $derived({ x: (from.x + to.x) / 2, y: (from.y + to.y) / 2 });
+  const midpoint = $derived(bezierMidpoint(from, to, resolvedSides.fromSide, resolvedSides.toSide));
 
   const opacity = $derived(selected || hovered ? 1 : 0.7);
   const strokeWidth = $derived(selected || hovered ? 3 : 2);

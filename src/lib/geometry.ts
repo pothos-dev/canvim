@@ -56,6 +56,16 @@ export function bezierPath(from: Point, to: Point, fromSide: Side, toSide: Side)
   return `M ${from.x} ${from.y} C ${c1.x} ${c1.y}, ${c2.x} ${c2.y}, ${to.x} ${to.y}`;
 }
 
+export function bezierMidpoint(from: Point, to: Point, fromSide: Side, toSide: Side): Point {
+  const { c1, c2 } = bezierControlPoints(from, to, fromSide, toSide);
+  // Evaluate cubic bezier at t=0.5
+  const t = 0.5, u = 0.5;
+  return {
+    x: u*u*u*from.x + 3*u*u*t*c1.x + 3*u*t*t*c2.x + t*t*t*to.x,
+    y: u*u*u*from.y + 3*u*u*t*c1.y + 3*u*t*t*c2.y + t*t*t*to.y,
+  };
+}
+
 export function distToBezier(from: Point, to: Point, fromSide: Side, toSide: Side, test: Point): number {
   const { c1, c2 } = bezierControlPoints(from, to, fromSide, toSide);
   let minD = Infinity;
