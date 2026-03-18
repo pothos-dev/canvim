@@ -28,8 +28,11 @@
   } | null>(null);
   let didDrag = false; // true if a drag actually moved/resized
   let mouseVisualEnd = $state<{ x: number; y: number } | null>(null);
-  let mouseCursorHidden = $state(false);
-  let keyboardCursorHidden = $state(false);
+
+  // Input mode: determines which cursor is visible and how "under cursor" is resolved
+  type InputMode = "mouse" | "keyboard";
+  let inputMode = $state<InputMode>("keyboard");
+  let mouseCanvasPos = $state<Point>({ x: 0, y: 0 });
 
   // Command system
   const commandKeyMap = $derived(store.config ? buildKeyMap(store.config) : new Map());
@@ -67,6 +70,9 @@
       y: -store.viewport.y / store.viewport.zoom,
     };
   }
+
+  /** The active cursor point: mouse position in mouse mode, screen center in keyboard mode */
+  const cursorPoint = $derived(inputMode === "mouse" ? mouseCanvasPos : getCanvasCenter());
 
   function getNodeAtCenter() {
     const center = getCanvasCenter();
@@ -151,12 +157,11 @@
     return distToBezier(p0, p3, fromSide, toSide, point);
   }
 
-  function getEdgeAtCenter(): Edge | undefined {
-    const center = getCanvasCenter();
+  function getEdgeNear(point: Point): Edge | undefined {
     let best: Edge | undefined;
     let bestDist = EDGE_HIT_THRESHOLD;
     for (const edge of store.edges) {
-      const d = distToEdge(edge, center);
+      const d = distToEdge(edge, point);
       if (d < bestDist) {
         bestDist = d;
         best = edge;
@@ -189,14 +194,15 @@
   }
 
   // Priority: non-group node > edge > group node
+  // Uses cursorPoint which follows mouse in mouse mode, screen center in keyboard mode
   const nonGroupNodeUnderCursor = $derived.by(() => {
-    const center = getCanvasCenter();
-    return store.nodes.find((n) => n.type !== "group" && pointInNode(n, center));
+    const p = cursorPoint;
+    return store.nodes.find((n) => n.type !== "group" && pointInNode(n, p));
   });
-  const edgeUnderCursor = $derived(nonGroupNodeUnderCursor ? undefined : getEdgeAtCenter());
+  const edgeUnderCursor = $derived(nonGroupNodeUnderCursor ? undefined : getEdgeNear(cursorPoint));
   const nodeUnderCursor = $derived(nonGroupNodeUnderCursor ?? (edgeUnderCursor ? undefined : (() => {
-    const center = getCanvasCenter();
-    return store.nodes.find((n) => pointInNode(n, center));
+    const p = cursorPoint;
+    return store.nodes.find((n) => pointInNode(n, p));
   })()));
 
   // Nodes fully enclosed by the visual selection rectangle
@@ -226,7 +232,7 @@
       startEdgeLabelEdit,
       finishEdgeLabelEdit,
       editingEdgeLabel,
-      hideCursor: () => { mouseCursorHidden = true; keyboardCursorHidden = false; },
+      hideCursor: () => { inputMode = "keyboard"; },
       getNodeAtCenter,
       getCanvasCenter,
       fitNodesToContent,
@@ -472,8 +478,8 @@
   }
 
   function handleMouseMove(e: MouseEvent) {
-    mouseCursorHidden = false;
-    keyboardCursorHidden = true;
+    inputMode = "mouse";
+    mouseCanvasPos = screenToCanvas(e.clientX, e.clientY);
     if (!dragging) {
       updateCursor(e);
       return;
@@ -628,7 +634,7 @@
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <div
   class="canvas-container"
-  class:cursor-hidden={mouseCursorHidden}
+  class:cursor-hidden={inputMode === "keyboard"}
   bind:this={containerEl}
   onmousedown={handleMouseDown}
   onclick={handleBackgroundClick}
@@ -645,7 +651,7 @@
   "
 >
   <!-- Crosshair -->
-  <div class="crosshair" class:hidden={store.mode === "insert" || keyboardCursorHidden} class:connect-crosshair={store.mode === "connect"} class:visual-crosshair={store.mode === "visual"}>
+  <div class="crosshair" class:hidden={store.mode === "insert" || inputMode === "mouse"} class:connect-crosshair={store.mode === "connect"} class:visual-crosshair={store.mode === "visual"}>
     <div class="crosshair-h" style="--ch-color: {colors.crosshair};"></div>
     <div class="crosshair-v" style="--ch-color: {colors.crosshair};"></div>
   </div>
