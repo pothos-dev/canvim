@@ -381,7 +381,7 @@ function setConnectFromSide(side: Side) {
   connectFromSide = side;
 }
 
-function addEdge(fromId: string, fromSide: Side, toId: string, toSide: Side) {
+function addEdge(fromId: string, fromSide: Side, toId: string, toSide: Side): string {
   pushSnapshot();
   const id = generateId();
   const edge: Edge = {
@@ -394,6 +394,7 @@ function addEdge(fromId: string, fromSide: Side, toId: string, toSide: Side) {
   };
   edges.push(edge);
   debouncedSave();
+  return id;
 }
 
 // --- Search ---

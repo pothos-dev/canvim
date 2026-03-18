@@ -134,12 +134,15 @@ export const commands: Command[] = [
 
   // Insert mode shortcut
   { id: "insert", mode: "normal", label: "insert", configKey: "normal.insert", hidden: true,
-    available: (ctx) => noMultiSelect(ctx) && !!ctx.nodeUnderCursor,
+    available: (ctx) => noMultiSelect(ctx) && (!!ctx.nodeUnderCursor || !!ctx.edgeUnderCursor),
     execute: (ctx) => {
       if (ctx.nodeUnderCursor) {
         const implicit = !ctx.store.selectedNodeIds.includes(ctx.nodeUnderCursor.id);
         ctx.store.selectNode(ctx.nodeUnderCursor.id);
         ctx.store.enterInsert(implicit);
+      } else if (ctx.edgeUnderCursor) {
+        ctx.store.selectEdge(ctx.edgeUnderCursor.id);
+        ctx.startEdgeLabelEdit();
       }
     },
   },
@@ -334,6 +337,11 @@ export const commands: Command[] = [
   { id: "connect_right", mode: "connect", label: "move", group: "connect_dir", configKey: "connect.right", available: always, execute: dirExecutor(1, 0, "connect_pan") },
   { id: "connect_up", mode: "connect", label: "move", group: "connect_dir", configKey: "connect.up", available: always, execute: dirExecutor(0, -1, "connect_pan") },
   { id: "connect_down", mode: "connect", label: "move", group: "connect_dir", configKey: "connect.down", available: always, execute: dirExecutor(0, 1, "connect_pan") },
+  // Arrow aliases
+  { id: "connect_left_arrow", mode: "connect", label: "move", group: "connect_dir", configKey: "connect.left", hidden: true, available: always, execute: dirExecutor(-1, 0, "connect_pan") },
+  { id: "connect_right_arrow", mode: "connect", label: "move", group: "connect_dir", configKey: "connect.right", hidden: true, available: always, execute: dirExecutor(1, 0, "connect_pan") },
+  { id: "connect_up_arrow", mode: "connect", label: "move", group: "connect_dir", configKey: "connect.up", hidden: true, available: always, execute: dirExecutor(0, -1, "connect_pan") },
+  { id: "connect_down_arrow", mode: "connect", label: "move", group: "connect_dir", configKey: "connect.down", hidden: true, available: always, execute: dirExecutor(0, 1, "connect_pan") },
   { id: "connect_confirm", mode: "connect", label: "connect", configKey: "connect.confirm", available: always,
     execute: (ctx) => {
       const target = ctx.getNodeAtCenter();
@@ -346,8 +354,10 @@ export const commands: Command[] = [
       const fromSide = ctx.store.connectFromSide ?? autoSides(fromNode, target).fromSide;
       const center = ctx.getCanvasCenter();
       const toSide = detectSide(target, center);
-      ctx.store.addEdge(fromNode.id, fromSide, target.id, toSide);
+      const edgeId = ctx.store.addEdge(fromNode.id, fromSide, target.id, toSide);
       ctx.store.exitConnect();
+      ctx.store.selectEdge(edgeId);
+      ctx.startEdgeLabelEdit();
     },
   },
   { id: "connect_exit", mode: "connect", label: "cancel", configKey: "connect.exit", available: always,
@@ -424,6 +434,10 @@ export function buildKeyMap(config: Config): Map<string, Command[]> {
     "visual_right_arrow": "ArrowRight",
     "visual_up_arrow": "ArrowUp",
     "visual_down_arrow": "ArrowDown",
+    "connect_left_arrow": "ArrowLeft",
+    "connect_right_arrow": "ArrowRight",
+    "connect_up_arrow": "ArrowUp",
+    "connect_down_arrow": "ArrowDown",
     "delete_key": "Delete",
     "zoom_in_eq": "=",
     "yank_ctrlc": "C-c",
