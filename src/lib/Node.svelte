@@ -128,7 +128,7 @@
     overflow: hidden;
     cursor: inherit;
     box-sizing: border-box;
-    opacity: 0.7;
+    opacity: 0.5;
 
   }
 
@@ -139,6 +139,7 @@
 
   .node.hovered {
     opacity: 1;
+    border-color: var(--selected);
   }
 
   .node.editing {
