@@ -7,15 +7,15 @@ import type { Canvas, Config } from "./types";
 
 const DEFAULT_CONFIG: Config = {
   colors: {
-    background: "#181825",
-    node_background: "#1e1e1e",
-    node_border: "#555555",
-    edge: "#585b70",
-    text: "#cdd6f4",
-    crosshair: "rgba(205, 214, 244, 0.3)",
-    dot_grid: "rgba(205, 214, 244, 0.08)",
-    status_bar_bg: "#11111b",
-    status_bar_text: "#6c7086",
+    background: "#0f172a",
+    node_background: "#1e293b",
+    node_border: "#334155",
+    edge: "#475569",
+    text: "#cbd5e1",
+    crosshair: "rgba(148, 163, 184, 0.3)",
+    dot_grid: "rgba(148, 163, 184, 0.08)",
+    status_bar_bg: "#020617",
+    status_bar_text: "#64748b",
     node_font: "system-ui, sans-serif",
     node_font_size: 14,
     red: "#fb464c",
@@ -68,7 +68,7 @@ const DEFAULT_CONFIG: Config = {
   },
 };
 
-const TEST_CANVAS: Canvas = {
+const FALLBACK_CANVAS: Canvas = {
   nodes: [
     {
       type: "text",
@@ -109,10 +109,24 @@ const TEST_CANVAS: Canvas = {
   ],
 };
 
+let loadedCanvas: Canvas | null = null;
+
+async function fetchCanvasFromFile(): Promise<Canvas> {
+  if (loadedCanvas) return loadedCanvas;
+  try {
+    const resp = await fetch("/architecture.canvas");
+    if (resp.ok) {
+      loadedCanvas = await resp.json();
+      return loadedCanvas!;
+    }
+  } catch { /* ignore */ }
+  return FALLBACK_CANVAS;
+}
+
 const MOCK_HANDLERS: Record<string, (...args: unknown[]) => unknown> = {
-  init: () => ({ config: DEFAULT_CONFIG, file_path: "mock://test.canvas" }),
+  init: () => ({ config: DEFAULT_CONFIG, file_path: "mock://architecture.canvas" }),
   log: (args: any) => console.log("[webview]", args?.message),
-  read_canvas: () => TEST_CANVAS,
+  read_canvas: () => fetchCanvasFromFile(),
   save_canvas: () => {},
 };
 

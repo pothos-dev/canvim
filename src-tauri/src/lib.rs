@@ -39,15 +39,15 @@ macro_rules! config_struct {
 const DEFAULT_CONFIG: &str = r##"# Canvim configuration
 
 [colors]
-background = "#181825"
-node_background = "#1e1e1e"
-node_border = "#555555"
-edge = "#585b70"
-text = "#cdd6f4"
-crosshair = "rgba(205, 214, 244, 0.3)"
-dot_grid = "rgba(205, 214, 244, 0.08)"
-status_bar_bg = "#11111b"
-status_bar_text = "#6c7086"
+background = "#0f172a"
+node_background = "#1e293b"
+node_border = "#334155"
+edge = "#475569"
+text = "#cbd5e1"
+crosshair = "rgba(148, 163, 184, 0.3)"
+dot_grid = "rgba(148, 163, 184, 0.08)"
+status_bar_bg = "#020617"
+status_bar_text = "#64748b"
 
 node_font = "system-ui, sans-serif"
 node_font_size = 14
@@ -126,15 +126,15 @@ exit = "Escape"
 "##;
 
 config_struct!(ConfigColors {
-    background: String = "#181825".into(),
-    node_background: String = "#1e1e1e".into(),
-    node_border: String = "#555555".into(),
-    edge: String = "#585b70".into(),
-    text: String = "#cdd6f4".into(),
-    crosshair: String = "rgba(205, 214, 244, 0.3)".into(),
-    dot_grid: String = "rgba(205, 214, 244, 0.08)".into(),
-    status_bar_bg: String = "#11111b".into(),
-    status_bar_text: String = "#6c7086".into(),
+    background: String = "#0f172a".into(),
+    node_background: String = "#1e293b".into(),
+    node_border: String = "#334155".into(),
+    edge: String = "#475569".into(),
+    text: String = "#cbd5e1".into(),
+    crosshair: String = "rgba(148, 163, 184, 0.3)".into(),
+    dot_grid: String = "rgba(148, 163, 184, 0.08)".into(),
+    status_bar_bg: String = "#020617".into(),
+    status_bar_text: String = "#64748b".into(),
     node_font: String = "system-ui, sans-serif".into(),
     node_font_size: u32 = 14,
     red: String = "#fb464c".into(),
