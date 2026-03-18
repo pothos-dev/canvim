@@ -391,6 +391,22 @@
   }
 
   function handleMouseDown(e: MouseEvent) {
+    // Middle mouse always pans, regardless of mode
+    if (e.button === 1) {
+      e.preventDefault();
+      didDrag = false;
+      dragging = {
+        type: "pan",
+        startMouseX: e.clientX,
+        startMouseY: e.clientY,
+        nodes: [],
+        startViewportX: store.viewport.x,
+        startViewportY: store.viewport.y,
+        tempSelected: false,
+      };
+      document.body.style.cursor = "grabbing";
+      return;
+    }
     if (store.mode === "insert" || store.mode === "connect" || store.mode === "move" || store.mode === "resize" || store.mode === "search" || store.mode === "visual") return;
 
     const canvas = screenToCanvas(e.clientX, e.clientY);
