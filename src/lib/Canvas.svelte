@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount, tick } from "svelte";
+  import { onMount } from "svelte";
   import NodeComponent from "./Node.svelte";
   import EdgeComponent from "./Edge.svelte";
   import type { CanvasNode, Edge, Point, Side } from "./types";
@@ -8,6 +8,7 @@
   import { STEP, ZOOM_STEP, BORDER_ZONE, EDGE_HIT_THRESHOLD, UI_COLORS } from "./constants";
   import { marked } from "./markdown";
   import { pointInNode, attachmentPoint, detectSide, autoSides, distToBezier } from "./geometry";
+  import { debug } from "./debug";
 
   const store = getStore();
 
@@ -168,26 +169,29 @@
 
   function startEdgeLabelEdit() {
     const edgeId = store.selectedEdgeId;
+    debug(`startEdgeLabelEdit: edgeId=${edgeId} mode=${store.mode}`);
     if (!edgeId) return;
     const edge = store.edges.find(e => e.id === edgeId);
     edgeLabelValue = edge?.label ?? "";
     editingEdgeLabel = true;
     store.enterInsert();
-    // Focus after DOM update; preventScroll avoids container scroll offset
-    tick().then(() => edgeLabelInputEl?.focus({ preventScroll: true }));
+    debug(`startEdgeLabelEdit: after enterInsert mode=${store.mode} scrollLeft=${containerEl?.scrollLeft} scrollTop=${containerEl?.scrollTop}`);
+    // Focus after DOM update
+    requestAnimationFrame(() => {
+      debug(`startEdgeLabelEdit: rAF focus inputEl=${!!edgeLabelInputEl} scrollLeft=${containerEl?.scrollLeft} scrollTop=${containerEl?.scrollTop}`);
+      edgeLabelInputEl?.focus();
+      debug(`startEdgeLabelEdit: after focus scrollLeft=${containerEl?.scrollLeft} scrollTop=${containerEl?.scrollTop}`);
+    });
   }
 
   function finishEdgeLabelEdit() {
+    debug(`finishEdgeLabelEdit: edgeId=${store.selectedEdgeId} value="${edgeLabelValue}" mode=${store.mode} scrollLeft=${containerEl?.scrollLeft} scrollTop=${containerEl?.scrollTop}`);
     if (store.selectedEdgeId) {
       store.updateEdgeLabel(store.selectedEdgeId, edgeLabelValue);
     }
     editingEdgeLabel = false;
     store.exitInsert();
-    // Reset any scroll offset the browser may have introduced
-    if (containerEl) {
-      containerEl.scrollLeft = 0;
-      containerEl.scrollTop = 0;
-    }
+    debug(`finishEdgeLabelEdit: after exitInsert mode=${store.mode} scrollLeft=${containerEl?.scrollLeft} scrollTop=${containerEl?.scrollTop} viewport=(${Math.round(store.viewport.x)},${Math.round(store.viewport.y)})`);
   }
 
   // Priority: non-group node > edge > group node
@@ -248,16 +252,7 @@
   });
 
   function handleKeydown(e: KeyboardEvent) {
-    // Handle edge label editing at the window level — avoids reliance on
-    // stopPropagation from the input's inline handler (broken in WebKitGTK)
-    if (editingEdgeLabel && (e.key === "Enter" || e.key === "Escape")) {
-      e.preventDefault();
-      finishEdgeLabelEdit();
-      return;
-    }
-
-    // Don't process commands when typing in input fields
-    if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+    debug(`keydown: key=${e.key} code=${e.code} repeat=${e.repeat} target=${(e.target as HTMLElement)?.tagName} mode=${store.mode} editingEdgeLabel=${editingEdgeLabel}`);
 
     // Prevent browser defaults on Ctrl+key combos we handle
     if (e.key === "Tab") {
@@ -272,24 +267,32 @@
     const prefix = e.ctrlKey ? "C-" : e.shiftKey && e.key !== e.key.toUpperCase() ? "S-" : "";
     const mapKey = `${store.mode}:${prefix}${e.key}`;
     const candidates = commandKeyMap.get(mapKey);
-    if (!candidates) return;
+    if (!candidates) {
+      debug(`keydown: no candidates for mapKey=${mapKey}`);
+      return;
+    }
 
     const multiplier = getPanMultiplier(e.key, e.repeat);
     const ctx = makeCommandContext(multiplier);
     for (const cmd of candidates) {
       if (cmd.available(ctx)) {
+        debug(`keydown: executing cmd=${cmd.id} mapKey=${mapKey}`);
         e.preventDefault();
         cmd.execute(ctx);
+        debug(`keydown: after execute mode=${store.mode} selectedEdge=${store.selectedEdgeId} selectedNodes=${JSON.stringify(store.selectedNodeIds)} viewport=(${Math.round(store.viewport.x)},${Math.round(store.viewport.y)},${store.viewport.zoom})`);
         return;
       }
     }
+    debug(`keydown: no available command for mapKey=${mapKey}`);
   }
 
   function handleEdgeClick(id: string) {
+    debug(`handleEdgeClick: id=${id}`);
     store.selectEdge(id);
   }
 
   function handleNodeClick(id: string) {
+    debug(`handleNodeClick: id=${id} didDrag=${didDrag}`);
     if (didDrag) { didDrag = false; return; }
     const node = store.nodes.find((n) => n.id === id);
     if (!node) return;
@@ -448,6 +451,7 @@
   }
 
   function handleBackgroundClick(e: MouseEvent) {
+    debug(`handleBackgroundClick: didDrag=${didDrag} mode=${store.mode}`);
     if (didDrag) { didDrag = false; return; }
     store.deselectAll();
   }
@@ -544,7 +548,6 @@
           labelTextColor={colors.text}
           selected={store.selectedEdgeId === edge.id}
           hovered={edgeUnderCursor?.id === edge.id && store.mode === "normal"}
-          editing={editingEdgeLabel && store.selectedEdgeId === edge.id}
           onClick={handleEdgeClick}
           resolveColor={store.resolveColor}
         />
@@ -632,6 +635,7 @@
             <input
               bind:this={edgeLabelInputEl}
               bind:value={edgeLabelValue}
+              onkeydown={(e) => { debug(`edgeLabelInput keydown: key=${e.key} propagation will be stopped`); if (e.key === 'Enter' || e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); finishEdgeLabelEdit(); }}}
               class="edge-label-input"
               placeholder=""
             />
