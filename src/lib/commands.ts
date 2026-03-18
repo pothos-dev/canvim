@@ -19,6 +19,8 @@ export interface CommandContext {
   getCanvasCenter: () => Point;
   /** Fit selected nodes' height to their content */
   fitNodesToContent: () => void;
+  /** Multiplier for pan acceleration (1 = normal) */
+  panMultiplier: number;
 }
 
 export interface Command {
@@ -53,7 +55,7 @@ function dirExecutor(dx: number, dy: number, action: "pan" | "move" | "resize" |
   return (ctx: CommandContext) => {
     ctx.hideCursor();
     if (action === "pan" || action === "connect_pan") {
-      ctx.store.panGrid(-dx, -dy);
+      ctx.store.panGrid(-dx * ctx.panMultiplier, -dy * ctx.panMultiplier);
     } else if (action === "move") {
       for (const id of ctx.store.selectedNodeIds) {
         ctx.store.moveNode(id, dx * STEP, dy * STEP);
