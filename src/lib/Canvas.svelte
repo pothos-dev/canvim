@@ -232,6 +232,7 @@
 
   function handleEdgeClick(id: string) {
     store.selectEdge(id);
+    startEdgeLabelEdit();
   }
 
   function handleNodeClick(id: string, e: MouseEvent) {
