@@ -317,7 +317,7 @@
       e.preventDefault();
       if (node && node.id !== store.connectFromNodeId) {
         const fromNode = store.findNode(store.connectFromNodeId!);
-        if (!fromNode) { store.exitConnect(); return; }
+        if (!fromNode) { store.exitConnect(); document.body.style.cursor = ""; return; }
         const fromSide = store.connectFromSide ?? autoSides(fromNode, node).fromSide;
         const toSide = detectSide(node, canvas);
         if (store.reconnectEdgeId) {
@@ -330,6 +330,7 @@
           startEdgeLabelEdit();
         }
       }
+      document.body.style.cursor = "";
       return;
     }
 
@@ -339,23 +340,8 @@
       e.preventDefault();
       didDrag = false;
 
-      if (node) {
-        if (e.ctrlKey) return;
-        const wasSelected = store.selectedNodeIds.includes(node.id);
-        if (!wasSelected) store.selectNode(node.id);
-        store.pushSnapshot();
-        dragging = {
-          type: "move",
-          startMouseX: e.clientX,
-          startMouseY: e.clientY,
-          nodes: collectDragNodes(node.id),
-          startViewportX: 0,
-          startViewportY: 0,
-          tempSelected: !wasSelected,
-        };
-        document.body.style.cursor = "grabbing";
-      } else {
-        // Check if clicking near an edge endpoint for reconnect
+      // Check for edge endpoint grab before group nodes (edges render on top of groups)
+      if (!node || node.type === "group") {
         const edgeNear = findEdgeNear(canvas);
         if (edgeNear) {
           const end = nearestEdgeEnd(edgeNear, canvas, store.findNode);
@@ -374,10 +360,28 @@
               store.enterReconnect(edgeNear.id, "from", edgeNear.toNode, toSide);
             }
             inputMode = "mouse";
+            document.body.style.cursor = "grabbing";
             return;
           }
         }
+      }
 
+      if (node) {
+        if (e.ctrlKey) return;
+        const wasSelected = store.selectedNodeIds.includes(node.id);
+        if (!wasSelected) store.selectNode(node.id);
+        store.pushSnapshot();
+        dragging = {
+          type: "move",
+          startMouseX: e.clientX,
+          startMouseY: e.clientY,
+          nodes: collectDragNodes(node.id),
+          startViewportX: 0,
+          startViewportY: 0,
+          tempSelected: !wasSelected,
+        };
+        document.body.style.cursor = "grabbing";
+      } else {
         dragging = {
           type: "pan",
           startMouseX: e.clientX,
@@ -436,10 +440,12 @@
   function handleMouseMove(e: MouseEvent) {
     inputMode = "mouse";
     mouseCanvasPos = store.screenToCanvas(e.clientX, e.clientY);
-    if (!dragging) {
+    if (!dragging && store.mode !== "connect") {
+      document.body.style.cursor = "";
       updateCursor(e);
       return;
     }
+    if (!dragging) return;
 
     e.preventDefault();
     const dx = (e.clientX - dragging.startMouseX) / store.viewport.zoom;
@@ -524,16 +530,17 @@
     if (!containerEl || store.mode === "insert") return;
     const canvas = store.screenToCanvas(e.clientX, e.clientY);
     const node = findNodeAt(store.nodes, canvas);
-    if (node) {
-      containerEl.style.cursor = "crosshair";
-    } else {
+
+    // Edge endpoints take priority over groups (edges render on top)
+    if (!node || node.type === "group") {
       const edge = findEdgeNear(canvas);
       if (edge && nearestEdgeEnd(edge, canvas, store.findNode)) {
         containerEl.style.cursor = "grab";
-      } else {
-        containerEl.style.cursor = "";
+        return;
       }
     }
+
+    containerEl.style.cursor = node ? "grab" : "";
   }
 
   function handleBackgroundClick(e: MouseEvent) {
@@ -716,7 +723,7 @@
     height: 100vh;
     overflow: clip;
     position: relative;
-    cursor: all-scroll;
+    cursor: default;
   }
 
   .canvas-container.cursor-hidden, .canvas-container.cursor-hidden * {
