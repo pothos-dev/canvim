@@ -14,7 +14,7 @@
     connectTarget?: boolean;
     dimmed?: boolean;
     searchQuery?: string;
-    onSelect: (id: string) => void;
+    onSelect: (id: string, e: MouseEvent) => void;
     onUpdate: (id: string, text: string) => void;
     onExitInsert: () => void;
     colors: ConfigColors;
@@ -103,7 +103,7 @@
     font-size: {fontSize}px;
     border-color: {borderColor};
   "
-  onclick={(e) => { e.stopPropagation(); onSelect(node.id); }}
+  onclick={(e) => { e.stopPropagation(); onSelect(node.id, e); }}
 >
   {#if editing && node.type === "text"}
     <MarkdownEditor

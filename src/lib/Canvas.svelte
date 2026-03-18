@@ -276,9 +276,13 @@
     store.selectEdge(id);
   }
 
-  function handleNodeClick(id: string) {
+  function handleNodeClick(id: string, e: MouseEvent) {
     if (didDrag) { didDrag = false; return; }
-    store.selectNode(id);
+    if (e.ctrlKey) {
+      store.toggleNodeSelection(id);
+    } else {
+      store.selectNode(id);
+    }
   }
 
   function handleDblClick(e: MouseEvent) {
@@ -291,12 +295,18 @@
 
   function handleWheel(e: WheelEvent) {
     e.preventDefault();
-    if (e.ctrlKey) {
-      const delta = e.deltaY > 0 ? -ZOOM_STEP : ZOOM_STEP;
-      store.zoom(delta);
-    } else {
-      store.pan(-e.deltaX, -e.deltaY);
-    }
+    // Zoom toward mouse cursor position
+    const delta = e.deltaY > 0 ? -ZOOM_STEP : ZOOM_STEP;
+    const oldZoom = store.viewport.zoom;
+    const newZoom = Math.max(0.1, Math.min(5, oldZoom + delta));
+    if (newZoom === oldZoom) return;
+    // Mouse position relative to viewport center (screen coords)
+    const mx = e.clientX - window.innerWidth / 2;
+    const my = e.clientY - window.innerHeight / 2;
+    // Adjust viewport so canvas point under cursor stays fixed
+    store.viewport.x = mx - (mx - store.viewport.x) * (newZoom / oldZoom);
+    store.viewport.y = my - (my - store.viewport.y) * (newZoom / oldZoom);
+    store.viewport.zoom = newZoom;
   }
 
   function screenToCanvas(screenX: number, screenY: number): { x: number; y: number } {
@@ -340,12 +350,35 @@
     return "default";
   }
 
+  /** Returns true if >50% of child's area overlaps the group */
+  function isContainedInGroup(child: CanvasNode, group: CanvasNode): boolean {
+    const overlapX = Math.max(0, Math.min(child.x + child.width, group.x + group.width) - Math.max(child.x, group.x));
+    const overlapY = Math.max(0, Math.min(child.y + child.height, group.y + group.height) - Math.max(child.y, group.y));
+    const overlapArea = overlapX * overlapY;
+    const childArea = child.width * child.height;
+    return childArea > 0 && overlapArea / childArea > 0.5;
+  }
+
   function collectDragNodes(anchorId: string): DragNodeStart[] {
     // If anchor is part of multi-selection, drag all selected nodes
-    const ids = store.selectedNodeIds.includes(anchorId) && store.selectedNodeIds.length > 1
-      ? store.selectedNodeIds
+    const baseIds = store.selectedNodeIds.includes(anchorId) && store.selectedNodeIds.length > 1
+      ? [...store.selectedNodeIds]
       : [anchorId];
-    return ids.map(id => {
+
+    // For any group nodes in the set, add contained children
+    const idSet = new Set(baseIds);
+    for (const id of baseIds) {
+      const node = store.nodes.find(n => n.id === id);
+      if (node?.type === "group") {
+        for (const child of store.nodes) {
+          if (child.id !== id && !idSet.has(child.id) && isContainedInGroup(child, node)) {
+            idSet.add(child.id);
+          }
+        }
+      }
+    }
+
+    return [...idSet].map(id => {
       const n = store.nodes.find(nn => nn.id === id)!;
       return { id, startX: n.x, startY: n.y, startW: n.width, startH: n.height };
     });
@@ -363,6 +396,8 @@
       didDrag = false;
 
       if (node) {
+        // Ctrl+click: toggle selection only, no drag
+        if (e.ctrlKey) return;
         // Left drag on node → move (all selected if part of selection)
         const wasSelected = store.selectedNodeIds.includes(node.id);
         if (!wasSelected) store.selectNode(node.id);
