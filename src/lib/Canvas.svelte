@@ -467,15 +467,6 @@
     --edge-label-bg: {colors.background};
     --edge-label-text: {colors.text};
     background-color: {colors.background};
-    background-image:
-      radial-gradient(circle, {colors.dot_grid} 2px, transparent 2px),
-      radial-gradient(circle, {colors.dot_grid} 1px, transparent 1px);
-    background-position:
-      calc(50vw + {store.viewport.x % (5 * STEP * store.viewport.zoom)}px) calc(50vh + {store.viewport.y % (5 * STEP * store.viewport.zoom)}px),
-      calc(50vw + {store.viewport.x % (STEP * store.viewport.zoom)}px) calc(50vh + {store.viewport.y % (STEP * store.viewport.zoom)}px);
-    background-size:
-      {5 * STEP * store.viewport.zoom}px {5 * STEP * store.viewport.zoom}px,
-      {STEP * store.viewport.zoom}px {STEP * store.viewport.zoom}px;
   "
 >
   <!-- Crosshair -->
