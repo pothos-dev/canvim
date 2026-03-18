@@ -31,6 +31,33 @@
   // Command system
   const commandKeyMap = $derived(store.config ? buildKeyMap(store.config) : new Map());
 
+  // Pan acceleration: holding a direction key ramps up the multiplier
+  const PAN_ACCEL_MAX = 5;
+  const PAN_ACCEL_RAMP = 8; // repeats to reach max
+  let panRepeatKey = "";
+  let panRepeatCount = 0;
+
+  function getPanMultiplier(key: string, isRepeat: boolean): number {
+    if (!isRepeat) {
+      panRepeatKey = key;
+      panRepeatCount = 0;
+      return 1;
+    }
+    if (key !== panRepeatKey) {
+      panRepeatKey = key;
+      panRepeatCount = 0;
+      return 1;
+    }
+    panRepeatCount++;
+    const t = Math.min(panRepeatCount / PAN_ACCEL_RAMP, 1);
+    return Math.round(1 + t * (PAN_ACCEL_MAX - 1));
+  }
+
+  function resetPanAccel() {
+    panRepeatKey = "";
+    panRepeatCount = 0;
+  }
+
   function getCanvasCenter(): Point {
     return {
       x: -store.viewport.x / store.viewport.zoom,
@@ -158,8 +185,16 @@
     store.exitInsert();
   }
 
-  const nodeUnderCursor = $derived(getNodeAtCenter());
-  const edgeUnderCursor = $derived(nodeUnderCursor ? undefined : getEdgeAtCenter());
+  // Priority: non-group node > edge > group node
+  const nonGroupNodeUnderCursor = $derived.by(() => {
+    const center = getCanvasCenter();
+    return store.nodes.find((n) => n.type !== "group" && pointInNode(n, center));
+  });
+  const edgeUnderCursor = $derived(nonGroupNodeUnderCursor ? undefined : getEdgeAtCenter());
+  const nodeUnderCursor = $derived(nonGroupNodeUnderCursor ?? (edgeUnderCursor ? undefined : (() => {
+    const center = getCanvasCenter();
+    return store.nodes.find((n) => pointInNode(n, center));
+  })()));
 
   // Nodes fully enclosed by the visual selection rectangle
   const visualEnclosedIds = $derived.by(() => {
@@ -178,7 +213,7 @@
     return ids;
   });
 
-  function makeCommandContext(): CommandContext {
+  function makeCommandContext(panMultiplier = 1): CommandContext {
     return {
       store,
       config: store.config!,
@@ -192,6 +227,7 @@
       getNodeAtCenter,
       getCanvasCenter,
       fitNodesToContent,
+      panMultiplier,
     };
   }
 
@@ -222,7 +258,8 @@
     const candidates = commandKeyMap.get(mapKey);
     if (!candidates) return;
 
-    const ctx = makeCommandContext();
+    const multiplier = getPanMultiplier(e.key, e.repeat);
+    const ctx = makeCommandContext(multiplier);
     for (const cmd of candidates) {
       if (cmd.available(ctx)) {
         e.preventDefault();
@@ -450,7 +487,7 @@
   });
 </script>
 
-<svelte:window onkeydown={handleKeydown} onmousemove={handleMouseMove} onmouseup={handleMouseUp} />
+<svelte:window onkeydown={handleKeydown} onkeyup={resetPanAccel} onmousemove={handleMouseMove} onmouseup={handleMouseUp} />
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <div
