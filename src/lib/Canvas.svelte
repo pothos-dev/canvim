@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount } from "svelte";
+  import { onMount, tick } from "svelte";
   import NodeComponent from "./Node.svelte";
   import EdgeComponent from "./Edge.svelte";
   import type { CanvasNode, Edge, Point, Side } from "./types";
@@ -173,8 +173,8 @@
     edgeLabelValue = edge?.label ?? "";
     editingEdgeLabel = true;
     store.enterInsert();
-    // Focus after DOM update
-    requestAnimationFrame(() => edgeLabelInputEl?.focus());
+    // Focus after DOM update; preventScroll avoids container scroll offset
+    tick().then(() => edgeLabelInputEl?.focus({ preventScroll: true }));
   }
 
   function finishEdgeLabelEdit() {
@@ -183,6 +183,14 @@
     }
     editingEdgeLabel = false;
     store.exitInsert();
+    // Reset any scroll offset the browser may have introduced
+    if (containerEl) {
+      containerEl.scrollLeft = 0;
+      containerEl.scrollTop = 0;
+    }
+    // Absorb any key repeats from the Enter/Escape that closed the editor
+    edgeLabelEditJustFinished = true;
+    requestAnimationFrame(() => { edgeLabelEditJustFinished = false; });
   }
 
   // Priority: non-group node > edge > group node
@@ -242,9 +250,14 @@
     return getHints(store.config, store.mode, snap);
   });
 
+  // Brief guard after finishing edge label edit to absorb key repeats
+  let edgeLabelEditJustFinished = false;
+
   function handleKeydown(e: KeyboardEvent) {
     // Don't process commands when typing in input fields (e.g. edge label editor)
     if (e.target instanceof HTMLInputElement) return;
+    // Ignore key repeats right after edge label edit closes
+    if (edgeLabelEditJustFinished) return;
 
     // Prevent browser defaults on Ctrl+key combos we handle
     if (e.key === "Tab") {
