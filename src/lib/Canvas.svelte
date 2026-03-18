@@ -14,15 +14,13 @@
   type DragType = "move" | "resize" | "pan" | "visual";
   type ResizeEdge = { left: boolean; right: boolean; top: boolean; bottom: boolean };
 
+  type DragNodeStart = { id: string; startX: number; startY: number; startW: number; startH: number };
+
   let dragging = $state<{
     type: DragType;
-    nodeId?: string;
     startMouseX: number;
     startMouseY: number;
-    startNodeX: number;
-    startNodeY: number;
-    startNodeW: number;
-    startNodeH: number;
+    nodes: DragNodeStart[];
     resizeEdge?: ResizeEdge;
     startViewportX: number;
     startViewportY: number;
@@ -31,6 +29,7 @@
   let didDrag = false; // true if a drag actually moved/resized
   let mouseVisualEnd = $state<{ x: number; y: number } | null>(null);
   let mouseCursorHidden = $state(false);
+  let keyboardCursorHidden = $state(false);
 
   // Command system
   const commandKeyMap = $derived(store.config ? buildKeyMap(store.config) : new Map());
@@ -227,7 +226,7 @@
       startEdgeLabelEdit,
       finishEdgeLabelEdit,
       editingEdgeLabel,
-      hideCursor: () => { if (!mouseCursorHidden) mouseCursorHidden = true; },
+      hideCursor: () => { mouseCursorHidden = true; keyboardCursorHidden = false; },
       getNodeAtCenter,
       getCanvasCenter,
       fitNodesToContent,
@@ -341,6 +340,17 @@
     return "default";
   }
 
+  function collectDragNodes(anchorId: string): DragNodeStart[] {
+    // If anchor is part of multi-selection, drag all selected nodes
+    const ids = store.selectedNodeIds.includes(anchorId) && store.selectedNodeIds.length > 1
+      ? store.selectedNodeIds
+      : [anchorId];
+    return ids.map(id => {
+      const n = store.nodes.find(nn => nn.id === id)!;
+      return { id, startX: n.x, startY: n.y, startW: n.width, startH: n.height };
+    });
+  }
+
   function handleMouseDown(e: MouseEvent) {
     if (store.mode === "insert" || store.mode === "connect" || store.mode === "move" || store.mode === "resize" || store.mode === "search" || store.mode === "visual") return;
 
@@ -353,19 +363,15 @@
       didDrag = false;
 
       if (node) {
-        // Left drag on node → move
+        // Left drag on node → move (all selected if part of selection)
         const wasSelected = store.selectedNodeIds.includes(node.id);
         if (!wasSelected) store.selectNode(node.id);
         store.pushSnapshot();
         dragging = {
           type: "move",
-          nodeId: node.id,
           startMouseX: e.clientX,
           startMouseY: e.clientY,
-          startNodeX: node.x,
-          startNodeY: node.y,
-          startNodeW: node.width,
-          startNodeH: node.height,
+          nodes: collectDragNodes(node.id),
           startViewportX: 0,
           startViewportY: 0,
           tempSelected: !wasSelected,
@@ -377,10 +383,7 @@
           type: "pan",
           startMouseX: e.clientX,
           startMouseY: e.clientY,
-          startNodeX: 0,
-          startNodeY: 0,
-          startNodeW: 0,
-          startNodeH: 0,
+          nodes: [],
           startViewportX: store.viewport.x,
           startViewportY: store.viewport.y,
           tempSelected: false,
@@ -393,8 +396,8 @@
       didDrag = false;
 
       if (node) {
-        // Right drag on node → resize
-        store.selectNode(node.id);
+        // Right drag on node → resize (all selected if part of selection)
+        if (!store.selectedNodeIds.includes(node.id)) store.selectNode(node.id);
         store.pushSnapshot();
         const midX = node.x + node.width / 2;
         const midY = node.y + node.height / 2;
@@ -406,13 +409,9 @@
         };
         dragging = {
           type: "resize",
-          nodeId: node.id,
           startMouseX: e.clientX,
           startMouseY: e.clientY,
-          startNodeX: node.x,
-          startNodeY: node.y,
-          startNodeW: node.width,
-          startNodeH: node.height,
+          nodes: collectDragNodes(node.id),
           resizeEdge,
           startViewportX: 0,
           startViewportY: 0,
@@ -427,10 +426,7 @@
           type: "visual",
           startMouseX: e.clientX,
           startMouseY: e.clientY,
-          startNodeX: 0,
-          startNodeY: 0,
-          startNodeW: 0,
-          startNodeH: 0,
+          nodes: [],
           startViewportX: 0,
           startViewportY: 0,
           tempSelected: false,
@@ -441,7 +437,8 @@
   }
 
   function handleMouseMove(e: MouseEvent) {
-    if (mouseCursorHidden) mouseCursorHidden = false;
+    mouseCursorHidden = false;
+    keyboardCursorHidden = true;
     if (!dragging) {
       updateCursor(e);
       return;
@@ -453,30 +450,34 @@
 
     if (dragging.type === "move") {
       if (Math.abs(dx) > 2 || Math.abs(dy) > 2) didDrag = true;
-      const node = store.nodes.find(n => n.id === dragging!.nodeId);
-      if (!node) return;
-      node.x = snap(dragging.startNodeX + dx);
-      node.y = snap(dragging.startNodeY + dy);
+      for (const dn of dragging.nodes) {
+        const node = store.nodes.find(n => n.id === dn.id);
+        if (!node) continue;
+        node.x = snap(dn.startX + dx);
+        node.y = snap(dn.startY + dy);
+      }
     } else if (dragging.type === "resize" && dragging.resizeEdge) {
       if (Math.abs(dx) > 2 || Math.abs(dy) > 2) didDrag = true;
-      const node = store.nodes.find(n => n.id === dragging!.nodeId);
-      if (!node) return;
       const edge = dragging.resizeEdge;
-      if (edge.right) {
-        node.width = Math.max(STEP * 2, snap(dragging.startNodeW + dx));
-      }
-      if (edge.bottom) {
-        node.height = Math.max(STEP * 2, snap(dragging.startNodeH + dy));
-      }
-      if (edge.left) {
-        const newW = Math.max(STEP * 2, snap(dragging.startNodeW - dx));
-        node.x = dragging.startNodeX + dragging.startNodeW - newW;
-        node.width = newW;
-      }
-      if (edge.top) {
-        const newH = Math.max(STEP * 2, snap(dragging.startNodeH - dy));
-        node.y = dragging.startNodeY + dragging.startNodeH - newH;
-        node.height = newH;
+      for (const dn of dragging.nodes) {
+        const node = store.nodes.find(n => n.id === dn.id);
+        if (!node) continue;
+        if (edge.right) {
+          node.width = Math.max(STEP * 2, snap(dn.startW + dx));
+        }
+        if (edge.bottom) {
+          node.height = Math.max(STEP * 2, snap(dn.startH + dy));
+        }
+        if (edge.left) {
+          const newW = Math.max(STEP * 2, snap(dn.startW - dx));
+          node.x = dn.startX + dn.startW - newW;
+          node.width = newW;
+        }
+        if (edge.top) {
+          const newH = Math.max(STEP * 2, snap(dn.startH - dy));
+          node.y = dn.startY + dn.startH - newH;
+          node.height = newH;
+        }
       }
     } else if (dragging.type === "pan") {
       didDrag = true;
@@ -493,15 +494,18 @@
     if (!dragging) return;
 
     if (dragging.type === "move" || dragging.type === "resize") {
-      const node = dragging.nodeId ? store.nodes.find(n => n.id === dragging!.nodeId) : null;
-      if (node) {
-        const moved = node.x !== dragging.startNodeX || node.y !== dragging.startNodeY ||
-                      node.width !== dragging.startNodeW || node.height !== dragging.startNodeH;
-        if (moved) {
-          store.save();
-        } else {
-          store.popSnapshot();
+      let anyChanged = false;
+      for (const dn of dragging.nodes) {
+        const node = store.nodes.find(n => n.id === dn.id);
+        if (node && (node.x !== dn.startX || node.y !== dn.startY || node.width !== dn.startW || node.height !== dn.startH)) {
+          anyChanged = true;
+          break;
         }
+      }
+      if (anyChanged) {
+        store.save();
+      } else {
+        store.popSnapshot();
       }
       // Deselect if it was a temporary selection during drag
       if (dragging.tempSelected && didDrag) {
@@ -524,7 +528,7 @@
     if (!containerEl || store.mode === "insert") return;
     const canvas = screenToCanvas(e.clientX, e.clientY);
     const node = findNodeAt(canvas.x, canvas.y);
-    containerEl.style.cursor = node ? "grab" : "crosshair";
+    containerEl.style.cursor = node ? "crosshair" : "grab";
   }
 
   function handleBackgroundClick(e: MouseEvent) {
@@ -606,9 +610,9 @@
   "
 >
   <!-- Crosshair -->
-  <div class="crosshair" class:hidden={store.mode === "insert"} class:connect-crosshair={store.mode === "connect"} class:visual-crosshair={store.mode === "visual"}>
-    <div class="crosshair-h" style="background: {colors.crosshair};"></div>
-    <div class="crosshair-v" style="background: {colors.crosshair};"></div>
+  <div class="crosshair" class:hidden={store.mode === "insert" || keyboardCursorHidden} class:connect-crosshair={store.mode === "connect"} class:visual-crosshair={store.mode === "visual"}>
+    <div class="crosshair-h" style="--ch-color: {colors.crosshair};"></div>
+    <div class="crosshair-v" style="--ch-color: {colors.crosshair};"></div>
   </div>
 
   <!-- Canvas plane -->
@@ -785,7 +789,7 @@
     height: 100vh;
     overflow: clip;
     position: relative;
-    cursor: crosshair; /* default, overridden dynamically */
+    cursor: grab;
   }
 
   .canvas-container.cursor-hidden, .canvas-container.cursor-hidden * {
@@ -838,6 +842,8 @@
   .crosshair-h,
   .crosshair-v {
     position: absolute;
+    background: var(--ch-color);
+    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.7);
   }
 
   .crosshair-h {
