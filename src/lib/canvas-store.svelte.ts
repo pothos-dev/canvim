@@ -1,7 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import type { Canvas, CanvasNode, Config, Edge, Side, Viewport } from "./types";
 import { STEP } from "./constants";
-import { debug } from "./debug";
 
 export type Mode = "normal" | "insert" | "connect" | "move" | "resize" | "search" | "visual";
 
@@ -178,7 +177,6 @@ function setNodeColor(id: string, color: string) {
 }
 
 function selectNode(id: string) {
-  debug(`store.selectNode: id=${id}`);
   selectedNodeIds = [id];
   selectedEdgeId = null;
 }
@@ -207,13 +205,11 @@ function toggleNodeSelection(id: string) {
 }
 
 function deselectAll() {
-  debug(`store.deselectAll: prev selectedNodes=${JSON.stringify(selectedNodeIds)} selectedEdge=${selectedEdgeId}`);
   selectedNodeIds = [];
   selectedEdgeId = null;
 }
 
 function selectEdge(id: string) {
-  debug(`store.selectEdge: id=${id}`);
   selectedEdgeId = id;
   selectedNodeIds = [];
 }
@@ -300,7 +296,6 @@ function paste(centerX: number, centerY: number) {
 
 function enterInsert(implicit = false) {
   if (selectedNodeIds.length === 1 || selectedEdgeId) {
-    debug(`store.enterInsert: implicit=${implicit} selectedNodes=${JSON.stringify(selectedNodeIds)} selectedEdge=${selectedEdgeId}`);
     pushSnapshot();
     implicitSelect = implicit;
     mode = "insert";
@@ -338,10 +333,8 @@ function switchToMove() {
 }
 
 function exitInsert() {
-  debug(`store.exitInsert: prev_mode=${mode} implicitSelect=${implicitSelect} selectedNodes=${JSON.stringify(selectedNodeIds)} selectedEdge=${selectedEdgeId}`);
   mode = "normal";
   if (implicitSelect) { deselectAll(); implicitSelect = false; }
-  debug(`store.exitInsert: after mode=${mode} selectedNodes=${JSON.stringify(selectedNodeIds)} selectedEdge=${selectedEdgeId}`);
 }
 
 function snapViewport() {
@@ -351,11 +344,9 @@ function snapViewport() {
 }
 
 function centerOn(x: number, y: number) {
-  debug(`store.centerOn: x=${x} y=${y} prev_viewport=(${Math.round(viewport.x)},${Math.round(viewport.y)})`);
   viewport.x = -x * viewport.zoom;
   viewport.y = -y * viewport.zoom;
   snapViewport();
-  debug(`store.centerOn: after snap viewport=(${Math.round(viewport.x)},${Math.round(viewport.y)})`);
 }
 
 function pan(dx: number, dy: number) {
@@ -381,7 +372,6 @@ function enterConnect(nodeId: string) {
 }
 
 function exitConnect() {
-  debug(`store.exitConnect`);
   connectFromNodeId = null;
   connectFromSide = null;
   mode = "normal";
@@ -392,7 +382,6 @@ function setConnectFromSide(side: Side) {
 }
 
 function addEdge(fromId: string, fromSide: Side, toId: string, toSide: Side): string {
-  debug(`store.addEdge: from=${fromId}:${fromSide} to=${toId}:${toSide}`);
   pushSnapshot();
   const id = generateId();
   const edge: Edge = {
