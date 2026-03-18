@@ -129,7 +129,7 @@
     cursor: inherit;
     box-sizing: border-box;
     opacity: 0.7;
-    transition: opacity 0.15s ease, box-shadow 0.2s ease;
+
   }
 
   .node.selected {
