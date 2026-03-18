@@ -2,7 +2,7 @@
 
 A vim-like canvas editor for [JSON Canvas](https://jsoncanvas.org/) files. Built with Tauri 2, SvelteKit, and Rust.
 
-Canvim lets you create and edit `.canvas` files (the format used by Obsidian Canvas) entirely from the keyboard, using vim-style navigation and modal editing.
+Canvim lets you create and edit `.canvas` files (the format used by Obsidian Canvas) using vim-style navigation and modal editing. Full mouse support is also included.
 
 ![Canvim screenshot](screenshot.png)
 
