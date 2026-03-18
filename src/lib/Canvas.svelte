@@ -600,8 +600,8 @@
           <ConnectPreview
             {fromNode}
             connectFromSide={store.connectFromSide}
-            center={store.getCanvasCenter()}
-            targetNode={getNodeAtCenter()}
+            center={cursorPoint}
+            targetNode={findNodeAt(store.nodes, cursorPoint)}
           />
         {/if}
       {/if}
