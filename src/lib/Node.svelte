@@ -127,33 +127,28 @@
     overflow: hidden;
     cursor: inherit;
     box-sizing: border-box;
-    opacity: 0.5;
-
+    outline: 3px solid transparent;
+    outline-offset: -1px;
   }
 
   .node.selected {
-    opacity: 1;
-    border-color: var(--selected);
+    outline-color: white;
   }
 
   .node.hovered {
-    opacity: 1;
-    border-color: var(--selected);
+    outline-color: white;
   }
 
   .node.editing {
-    opacity: 1;
-    border-color: var(--selected);
+    outline-color: white;
   }
 
   .node.connect-source {
-    opacity: 1;
-    border-color: var(--connect-color);
+    outline-color: var(--connect-color);
   }
 
   .node.connect-target {
-    opacity: 1;
-    border-color: var(--connect-color);
+    outline-color: var(--connect-color);
   }
 
   .node.dimmed {
