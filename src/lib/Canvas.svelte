@@ -13,7 +13,7 @@
   import { buildKeyMap, getHints, type CommandContext, type HintSnapshot } from "./commands";
   import { STEP, UI_COLORS, PAN_ACCEL_MAX, PAN_ACCEL_RAMP, ZOOM_STEP } from "./constants";
   import { marked } from "./markdown";
-  import { pointInNode, detectSide, nodesInRect, findNodeAt, isContainedInGroup, cursorForResizeEdge, getEdgeNear, nearestEdgeEnd, snap, autoSides, type ResizeEdge } from "./geometry";
+  import { pointInNode, detectSide, nodesInRect, findNodeAt, isContainedInGroup, cursorForResizeEdge, getEdgeNear, nearestEdgeEnd, snap, autoSides, attachmentPoint, type ResizeEdge } from "./geometry";
   import { getNodeDisplayText } from "./utils";
 
   const store = getStore();
@@ -530,17 +530,7 @@
     if (!containerEl || store.mode === "insert") return;
     const canvas = store.screenToCanvas(e.clientX, e.clientY);
     const node = findNodeAt(store.nodes, canvas);
-
-    // Edge endpoints take priority over groups (edges render on top)
-    if (!node || node.type === "group") {
-      const edge = findEdgeNear(canvas);
-      if (edge && nearestEdgeEnd(edge, canvas, store.findNode)) {
-        containerEl.style.cursor = "grab";
-        return;
-      }
-    }
-
-    containerEl.style.cursor = node ? "grab" : "";
+    containerEl.style.cursor = node ? "pointer" : "";
   }
 
   function handleBackgroundClick(e: MouseEvent) {
@@ -656,6 +646,18 @@
           resolveColor={store.resolveColor}
         />
       {/each}
+      <!-- Invisible endpoint grab circles (on top of edge hitboxes) -->
+      {#each store.edges as edge (edge.id)}
+        {@const fn = store.findNode(edge.fromNode)}
+        {@const tn = store.findNode(edge.toNode)}
+        {#if fn && tn}
+          {@const auto = autoSides(fn, tn)}
+          {@const fromPt = attachmentPoint(fn, (edge.fromSide ?? auto.fromSide))}
+          {@const toPt = attachmentPoint(tn, (edge.toSide ?? auto.toSide))}
+          <circle cx={fromPt.x} cy={fromPt.y} r="15" fill="transparent" style="pointer-events: fill; cursor: grab;" />
+          <circle cx={toPt.x} cy={toPt.y} r="15" fill="transparent" style="pointer-events: fill; cursor: grab;" />
+        {/if}
+      {/each}
       {#if store.mode === "connect" && store.connectFromNodeId}
         {@const fromNode = store.findNode(store.connectFromNodeId!)}
         {#if fromNode}
@@ -723,7 +725,7 @@
     height: 100vh;
     overflow: clip;
     position: relative;
-    cursor: default;
+    cursor: grab;
   }
 
   .canvas-container.cursor-hidden, .canvas-container.cursor-hidden * {
