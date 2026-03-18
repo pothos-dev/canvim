@@ -243,6 +243,9 @@
   });
 
   function handleKeydown(e: KeyboardEvent) {
+    // Don't process commands when typing in input fields (e.g. edge label editor)
+    if (e.target instanceof HTMLInputElement) return;
+
     // Prevent browser defaults on Ctrl+key combos we handle
     if (e.key === "Tab") {
       e.preventDefault();
@@ -528,6 +531,7 @@
           labelTextColor={colors.text}
           selected={store.selectedEdgeId === edge.id}
           hovered={edgeUnderCursor?.id === edge.id && store.mode === "normal"}
+          editing={editingEdgeLabel && store.selectedEdgeId === edge.id}
           onClick={handleEdgeClick}
           resolveColor={store.resolveColor}
         />

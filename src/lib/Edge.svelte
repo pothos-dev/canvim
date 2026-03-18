@@ -10,11 +10,12 @@
     labelTextColor: string;
     selected?: boolean;
     hovered?: boolean;
+    editing?: boolean;
     onClick?: (id: string) => void;
     resolveColor?: (preset: string | undefined) => string | undefined;
   }
 
-  let { edge, nodes, defaultColor, labelBgColor, labelTextColor, selected = false, hovered = false, onClick, resolveColor }: Props = $props();
+  let { edge, nodes, defaultColor, labelBgColor, labelTextColor, selected = false, hovered = false, editing = false, onClick, resolveColor }: Props = $props();
 
   const sideAngles: Record<Side, number> = {
     top: -90, bottom: 90, left: 180, right: 0,
@@ -82,7 +83,7 @@
   />
 {/if}
 
-{#if edge.label}
+{#if edge.label && !editing}
   <rect
     x={midpoint.x - edge.label.length * 3.6 - 6}
     y={midpoint.y - 18}
