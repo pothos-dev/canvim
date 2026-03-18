@@ -36,7 +36,7 @@
       fontFamily: "inherit",
     },
     ".cm-content": {
-      caretColor: textColor,
+      caretColor: "var(--cm-caret-color)",
       padding: "0",
     },
     ".cm-line": {
@@ -55,7 +55,7 @@
       backgroundColor: `${UI_COLORS.selection_bg_focused} !important`,
     },
     ".cm-cursor": {
-      borderLeftColor: textColor,
+      borderLeftColor: "var(--cm-caret-color)",
     },
   });
 
@@ -138,7 +138,7 @@
 <div
   class="cm-wrapper"
   bind:this={containerEl}
-  style="background: {bgColor}; color: {textColor}; height: 100%;"
+  style="background: {bgColor}; color: {textColor}; --cm-caret-color: {textColor}; height: 100%;"
 ></div>
 
 <style>
