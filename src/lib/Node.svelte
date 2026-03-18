@@ -134,8 +134,7 @@
 
   .node.selected {
     opacity: 1;
-    outline: 2px solid var(--selected);
-    outline-offset: -2px;
+    border-color: var(--selected);
   }
 
   .node.hovered {
@@ -144,20 +143,17 @@
 
   .node.editing {
     opacity: 1;
-    outline: 2px solid var(--selected);
-    outline-offset: -2px;
+    border-color: var(--selected);
   }
 
   .node.connect-source {
     opacity: 1;
-    outline: 2px solid var(--connect-color);
-    outline-offset: -2px;
+    border-color: var(--connect-color);
   }
 
   .node.connect-target {
     opacity: 1;
-    outline: 2px solid var(--connect-color);
-    outline-offset: -2px;
+    border-color: var(--connect-color);
   }
 
   .node.dimmed {
