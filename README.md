@@ -4,6 +4,8 @@ A vim-like canvas editor for [JSON Canvas](https://jsoncanvas.org/) files. Built
 
 Canvim lets you create and edit `.canvas` files (the format used by Obsidian Canvas) entirely from the keyboard, using vim-style navigation and modal editing.
 
+![Canvim screenshot](screenshot.png)
+
 ## Installation
 
 ```
