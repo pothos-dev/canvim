@@ -1,4 +1,5 @@
-import type { Point, Side, CanvasNode } from "./types";
+import type { Point, Side, CanvasNode, Edge } from "./types";
+import { STEP, BORDER_ZONE, EDGE_HIT_THRESHOLD } from "./constants";
 
 export const SIDE_NORMALS: Record<Side, Point> = {
   top: { x: 0, y: -1 },
@@ -90,4 +91,86 @@ export function distToBezier(from: Point, to: Point, fromSide: Side, toSide: Sid
     if (d < minD) minD = d;
   }
   return minD;
+}
+
+export function snap(v: number): number {
+  return Math.round(v / STEP) * STEP;
+}
+
+/** Find topmost node at a point, prioritizing non-groups over groups (reverse z-order) */
+export function findNodeAt(nodes: CanvasNode[], point: Point): CanvasNode | undefined {
+  for (let i = nodes.length - 1; i >= 0; i--) {
+    if (nodes[i].type !== "group" && pointInNode(nodes[i], point)) return nodes[i];
+  }
+  for (let i = nodes.length - 1; i >= 0; i--) {
+    if (pointInNode(nodes[i], point)) return nodes[i];
+  }
+  return undefined;
+}
+
+/** Check if a child node is contained within a group (>50% overlap by area) */
+export function isContainedInGroup(child: CanvasNode, group: CanvasNode): boolean {
+  const overlapX = Math.max(0, Math.min(child.x + child.width, group.x + group.width) - Math.max(child.x, group.x));
+  const overlapY = Math.max(0, Math.min(child.y + child.height, group.y + group.height) - Math.max(child.y, group.y));
+  const overlapArea = overlapX * overlapY;
+  const childArea = child.width * child.height;
+  return childArea > 0 && overlapArea / childArea > 0.5;
+}
+
+export type ResizeEdge = { left: boolean; right: boolean; top: boolean; bottom: boolean };
+
+/** Detect which border edges of a node the point is near (within BORDER_ZONE) */
+export function getResizeEdge(node: CanvasNode, canvasX: number, canvasY: number, zoom: number): ResizeEdge | null {
+  const zone = BORDER_ZONE / zoom;
+  const left = canvasX - node.x < zone;
+  const right = node.x + node.width - canvasX < zone;
+  const top = canvasY - node.y < zone;
+  const bottom = node.y + node.height - canvasY < zone;
+  if (left || right || top || bottom) return { left, right, top, bottom };
+  return null;
+}
+
+export function cursorForResizeEdge(edge: ResizeEdge): string {
+  if ((edge.top && edge.left) || (edge.bottom && edge.right)) return "nwse-resize";
+  if ((edge.top && edge.right) || (edge.bottom && edge.left)) return "nesw-resize";
+  if (edge.left || edge.right) return "ew-resize";
+  if (edge.top || edge.bottom) return "ns-resize";
+  return "default";
+}
+
+/** Compute distance from a point to an edge's bezier curve, resolving sides automatically */
+export function distToEdge(
+  edge: Edge,
+  point: Point,
+  findNode: (id: string) => CanvasNode | undefined,
+): number {
+  const fromNode = findNode(edge.fromNode);
+  const toNode = findNode(edge.toNode);
+  if (!fromNode || !toNode) return Infinity;
+
+  const auto = autoSides(fromNode, toNode);
+  const fromSide = (edge.fromSide as Side | undefined) ?? auto.fromSide;
+  const toSide = (edge.toSide as Side | undefined) ?? auto.toSide;
+
+  const p0 = attachmentPoint(fromNode, fromSide);
+  const p3 = attachmentPoint(toNode, toSide);
+  return distToBezier(p0, p3, fromSide, toSide, point);
+}
+
+/** Find the nearest edge to a point within EDGE_HIT_THRESHOLD */
+export function getEdgeNear(
+  edges: Edge[],
+  point: Point,
+  findNode: (id: string) => CanvasNode | undefined,
+): Edge | undefined {
+  let best: Edge | undefined;
+  let bestDist = EDGE_HIT_THRESHOLD;
+  for (const e of edges) {
+    const d = distToEdge(e, point, findNode);
+    if (d < bestDist) {
+      bestDist = d;
+      best = e;
+    }
+  }
+  return best;
 }

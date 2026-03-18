@@ -8,18 +8,17 @@
   import EdgeLabelEditor from "./components/EdgeLabelEditor.svelte";
   import SearchBar from "./components/SearchBar.svelte";
   import StatusBar from "./components/StatusBar.svelte";
-  import type { CanvasNode, Edge, Point, Side } from "./types";
+  import type { CanvasNode, Edge, Point } from "./types";
   import { getStore } from "./stores/index";
   import { buildKeyMap, getHints, type CommandContext, type HintSnapshot } from "./commands";
-  import { STEP, BORDER_ZONE, EDGE_HIT_THRESHOLD, UI_COLORS } from "./constants";
+  import { STEP, UI_COLORS, PAN_ACCEL_MAX, PAN_ACCEL_RAMP, ZOOM_STEP } from "./constants";
   import { marked } from "./markdown";
-  import { pointInNode, attachmentPoint, detectSide, autoSides, distToBezier, nodesInRect } from "./geometry";
+  import { pointInNode, detectSide, nodesInRect, findNodeAt, isContainedInGroup, cursorForResizeEdge, getEdgeNear, snap, type ResizeEdge } from "./geometry";
   import { getNodeDisplayText } from "./utils";
 
   const store = getStore();
 
   type DragType = "move" | "resize" | "pan" | "visual";
-  type ResizeEdge = { left: boolean; right: boolean; top: boolean; bottom: boolean };
 
   type DragNodeStart = { id: string; startX: number; startY: number; startW: number; startH: number };
 
@@ -42,8 +41,6 @@
 
   const commandKeyMap = $derived(store.config ? buildKeyMap(store.config) : new Map());
 
-  const PAN_ACCEL_MAX = 4;
-  const PAN_ACCEL_RAMP = 16;
   let panRepeatKey = "";
   let panRepeatCount = 0;
 
@@ -68,13 +65,10 @@
     panRepeatCount = 0;
   }
 
-  const cursorPoint = $derived(inputMode === "mouse" ? mouseCanvasPos : store.store.getCanvasCenter());
+  const cursorPoint = $derived(inputMode === "mouse" ? mouseCanvasPos : store.getCanvasCenter());
 
   function getNodeAtCenter() {
-    const center = store.getCanvasCenter();
-    const nonGroup = store.nodes.find((n) => n.type !== "group" && pointInNode(n, center));
-    if (nonGroup) return nonGroup;
-    return store.nodes.find((n) => pointInNode(n, center));
+    return findNodeAt(store.nodes, store.getCanvasCenter());
   }
 
   let wasInsideFromNode = false;
@@ -128,31 +122,8 @@
     document.body.removeChild(measure);
   }
 
-  function distToEdge(edge: Edge, point: Point): number {
-    const fromNode = store.findNode(edge.fromNode);
-    const toNode = store.findNode(edge.toNode);
-    if (!fromNode || !toNode) return Infinity;
-
-    const auto = autoSides(fromNode, toNode);
-    const fromSide = (edge.fromSide as Side | undefined) ?? auto.fromSide;
-    const toSide = (edge.toSide as Side | undefined) ?? auto.toSide;
-
-    const p0 = attachmentPoint(fromNode, fromSide);
-    const p3 = attachmentPoint(toNode, toSide);
-    return distToBezier(p0, p3, fromSide, toSide, point);
-  }
-
-  function getEdgeNear(point: Point): Edge | undefined {
-    let best: Edge | undefined;
-    let bestDist = EDGE_HIT_THRESHOLD;
-    for (const edge of store.edges) {
-      const d = distToEdge(edge, point);
-      if (d < bestDist) {
-        bestDist = d;
-        best = edge;
-      }
-    }
-    return best;
+  function findEdgeNear(point: Point): Edge | undefined {
+    return getEdgeNear(store.edges, point, store.findNode);
   }
 
   // Edge label editing state
@@ -183,7 +154,7 @@
     const p = cursorPoint;
     return store.nodes.find((n) => n.type !== "group" && pointInNode(n, p));
   });
-  const edgeUnderCursor = $derived(nonGroupNodeUnderCursor ? undefined : getEdgeNear(cursorPoint));
+  const edgeUnderCursor = $derived(nonGroupNodeUnderCursor ? undefined : findEdgeNear(cursorPoint));
   const nodeUnderCursor = $derived(nonGroupNodeUnderCursor ?? (edgeUnderCursor ? undefined : (() => {
     const p = cursorPoint;
     return store.nodes.find((n) => pointInNode(n, p));
@@ -211,7 +182,7 @@
       editingEdgeLabel,
       hideCursor: () => { inputMode = "keyboard"; },
       getNodeAtCenter,
-      getCanvasCenter,
+      getCanvasCenter: store.getCanvasCenter,
       fitNodesToContent,
       panMultiplier,
     };
@@ -268,7 +239,7 @@
 
   function handleDblClick(e: MouseEvent) {
     const canvas = store.screenToCanvas(e.clientX, e.clientY);
-    const node = findNodeAt(canvas.x, canvas.y);
+    const node = findNodeAt(store.nodes, canvas);
     if (!node) return;
     store.selectNode(node.id);
     store.enterInsert();
@@ -280,46 +251,6 @@
     store.zoomAtPoint(delta, e.clientX, e.clientY);
   }
 
-  function snap(v: number): number {
-    return Math.round(v / STEP) * STEP;
-  }
-
-  function getResizeEdge(node: CanvasNode, canvasX: number, canvasY: number): ResizeEdge | null {
-    const zone = BORDER_ZONE / store.viewport.zoom;
-    const left = canvasX - node.x < zone;
-    const right = node.x + node.width - canvasX < zone;
-    const top = canvasY - node.y < zone;
-    const bottom = node.y + node.height - canvasY < zone;
-    if (left || right || top || bottom) return { left, right, top, bottom };
-    return null;
-  }
-
-  function findNodeAt(canvasX: number, canvasY: number): CanvasNode | undefined {
-    const p = { x: canvasX, y: canvasY };
-    for (let i = store.nodes.length - 1; i >= 0; i--) {
-      if (store.nodes[i].type !== "group" && pointInNode(store.nodes[i], p)) return store.nodes[i];
-    }
-    for (let i = store.nodes.length - 1; i >= 0; i--) {
-      if (pointInNode(store.nodes[i], p)) return store.nodes[i];
-    }
-    return undefined;
-  }
-
-  function cursorForResizeEdge(edge: ResizeEdge): string {
-    if ((edge.top && edge.left) || (edge.bottom && edge.right)) return "nwse-resize";
-    if ((edge.top && edge.right) || (edge.bottom && edge.left)) return "nesw-resize";
-    if (edge.left || edge.right) return "ew-resize";
-    if (edge.top || edge.bottom) return "ns-resize";
-    return "default";
-  }
-
-  function isContainedInGroup(child: CanvasNode, group: CanvasNode): boolean {
-    const overlapX = Math.max(0, Math.min(child.x + child.width, group.x + group.width) - Math.max(child.x, group.x));
-    const overlapY = Math.max(0, Math.min(child.y + child.height, group.y + group.height) - Math.max(child.y, group.y));
-    const overlapArea = overlapX * overlapY;
-    const childArea = child.width * child.height;
-    return childArea > 0 && overlapArea / childArea > 0.5;
-  }
 
   function collectDragNodes(anchorId: string): DragNodeStart[] {
     const baseIds = store.selectedNodeIds.includes(anchorId) && store.selectedNodeIds.length > 1
@@ -373,7 +304,7 @@
     if (store.mode === "insert" || store.mode === "connect" || store.mode === "move" || store.mode === "resize" || store.mode === "search" || store.mode === "visual") return;
 
     const canvas = store.screenToCanvas(e.clientX, e.clientY);
-    const node = findNodeAt(canvas.x, canvas.y);
+    const node = findNodeAt(store.nodes, canvas);
 
     if (e.button === 0) {
       e.preventDefault();
@@ -539,7 +470,7 @@
   function updateCursor(e: MouseEvent) {
     if (!containerEl || store.mode === "insert") return;
     const canvas = store.screenToCanvas(e.clientX, e.clientY);
-    const node = findNodeAt(canvas.x, canvas.y);
+    const node = findNodeAt(store.nodes, canvas);
     containerEl.style.cursor = node ? "crosshair" : "grab";
   }
 
