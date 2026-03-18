@@ -524,7 +524,16 @@
     if (!containerEl || store.mode === "insert") return;
     const canvas = store.screenToCanvas(e.clientX, e.clientY);
     const node = findNodeAt(store.nodes, canvas);
-    containerEl.style.cursor = node ? "crosshair" : "grab";
+    if (node) {
+      containerEl.style.cursor = "crosshair";
+    } else {
+      const edge = findEdgeNear(canvas);
+      if (edge && nearestEdgeEnd(edge, canvas, store.findNode)) {
+        containerEl.style.cursor = "grab";
+      } else {
+        containerEl.style.cursor = "";
+      }
+    }
   }
 
   function handleBackgroundClick(e: MouseEvent) {
@@ -707,7 +716,7 @@
     height: 100vh;
     overflow: clip;
     position: relative;
-    cursor: grab;
+    cursor: all-scroll;
   }
 
   .canvas-container.cursor-hidden, .canvas-container.cursor-hidden * {
