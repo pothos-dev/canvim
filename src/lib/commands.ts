@@ -1,10 +1,10 @@
 import type { Config, CanvasNode, Edge, Point } from "./types";
-import type { Mode } from "./canvas-store.svelte";
+import type { Mode } from "./stores/mode.svelte";
 import { STEP, ZOOM_STEP } from "./constants";
 import { detectSide, autoSides } from "./geometry";
 
 export interface CommandContext {
-  store: ReturnType<typeof import("./canvas-store.svelte").getStore>;
+  store: ReturnType<typeof import("./stores/index").getStore>;
   config: Config;
   nodeUnderCursor: CanvasNode | undefined;
   edgeUnderCursor: Edge | undefined;

@@ -2,8 +2,14 @@
   import { onMount } from "svelte";
   import NodeComponent from "./Node.svelte";
   import EdgeComponent from "./Edge.svelte";
+  import Crosshair from "./components/Crosshair.svelte";
+  import VisualRect from "./components/VisualRect.svelte";
+  import ConnectPreview from "./components/ConnectPreview.svelte";
+  import EdgeLabelEditor from "./components/EdgeLabelEditor.svelte";
+  import SearchBar from "./components/SearchBar.svelte";
+  import StatusBar from "./components/StatusBar.svelte";
   import type { CanvasNode, Edge, Point, Side } from "./types";
-  import { getStore } from "./canvas-store.svelte";
+  import { getStore } from "./stores/index";
   import { buildKeyMap, getHints, type CommandContext, type HintSnapshot } from "./commands";
   import { STEP, ZOOM_STEP, BORDER_ZONE, EDGE_HIT_THRESHOLD, UI_COLORS } from "./constants";
   import { marked } from "./markdown";
@@ -26,20 +32,17 @@
     startViewportY: number;
     tempSelected: boolean;
   } | null>(null);
-  let didDrag = false; // true if a drag actually moved/resized
+  let didDrag = false;
   let mouseVisualEnd = $state<{ x: number; y: number } | null>(null);
 
-  // Input mode: determines which cursor is visible and how "under cursor" is resolved
   type InputMode = "mouse" | "keyboard";
   let inputMode = $state<InputMode>("keyboard");
   let mouseCanvasPos = $state<Point>({ x: 0, y: 0 });
 
-  // Command system
   const commandKeyMap = $derived(store.config ? buildKeyMap(store.config) : new Map());
 
-  // Pan acceleration: holding a direction key ramps up the multiplier
   const PAN_ACCEL_MAX = 4;
-  const PAN_ACCEL_RAMP = 16; // repeats to reach max
+  const PAN_ACCEL_RAMP = 16;
   let panRepeatKey = "";
   let panRepeatCount = 0;
 
@@ -71,18 +74,15 @@
     };
   }
 
-  /** The active cursor point: mouse position in mouse mode, screen center in keyboard mode */
   const cursorPoint = $derived(inputMode === "mouse" ? mouseCanvasPos : getCanvasCenter());
 
   function getNodeAtCenter() {
     const center = getCanvasCenter();
-    // Prefer non-group nodes over group nodes
     const nonGroup = store.nodes.find((n) => n.type !== "group" && pointInNode(n, center));
     if (nonGroup) return nonGroup;
     return store.nodes.find((n) => pointInNode(n, center));
   }
 
-  // Track when cursor leaves fromNode to detect fromSide
   let wasInsideFromNode = false;
 
   $effect(() => {
@@ -120,7 +120,6 @@
     const fontFamily = colors.node_font;
     const fontSize = colors.node_font_size;
 
-    // Create off-screen measurement div
     const measure = document.createElement("div");
     measure.style.cssText = `
       position: absolute; left: -9999px; top: -9999px;
@@ -170,9 +169,10 @@
     return best;
   }
 
+  // Edge label editing state
   let editingEdgeLabel = $state(false);
   let edgeLabelValue = $state("");
-  let edgeLabelInputEl: HTMLInputElement | undefined = $state();
+  let edgeLabelEditorRef: EdgeLabelEditor | undefined = $state();
 
   function startEdgeLabelEdit() {
     const edgeId = store.selectedEdgeId;
@@ -181,8 +181,7 @@
     edgeLabelValue = edge?.label ?? "";
     editingEdgeLabel = true;
     store.enterInsert();
-    // Focus after DOM update
-    requestAnimationFrame(() => edgeLabelInputEl?.focus());
+    requestAnimationFrame(() => edgeLabelEditorRef?.focus());
   }
 
   function finishEdgeLabelEdit() {
@@ -193,8 +192,7 @@
     store.exitInsert();
   }
 
-  // Priority: non-group node > edge > group node
-  // Uses cursorPoint which follows mouse in mouse mode, screen center in keyboard mode
+  // Hover detection
   const nonGroupNodeUnderCursor = $derived.by(() => {
     const p = cursorPoint;
     return store.nodes.find((n) => n.type !== "group" && pointInNode(n, p));
@@ -205,7 +203,6 @@
     return store.nodes.find((n) => pointInNode(n, p));
   })()));
 
-  // Nodes fully enclosed by the visual selection rectangle
   const visualEnclosedIds = $derived.by(() => {
     if (store.mode !== "visual" || !store.visualOrigin) return new Set<string>();
     const end = mouseVisualEnd ?? getCanvasCenter();
@@ -242,7 +239,6 @@
 
   const hints = $derived.by(() => {
     if (!store.config) return [];
-    // Use plain snapshot values to avoid reactive proxy reads in available() checks
     const snap: HintSnapshot = {
       hasNode: !!nodeUnderCursor,
       hasEdge: !!edgeUnderCursor,
@@ -252,7 +248,6 @@
   });
 
   function handleKeydown(e: KeyboardEvent) {
-    // Prevent browser defaults on Ctrl+key combos we handle
     if (e.key === "Tab") {
       e.preventDefault();
     }
@@ -301,15 +296,12 @@
 
   function handleWheel(e: WheelEvent) {
     e.preventDefault();
-    // Zoom toward mouse cursor position
     const delta = e.deltaY > 0 ? -ZOOM_STEP : ZOOM_STEP;
     const oldZoom = store.viewport.zoom;
     const newZoom = Math.max(0.1, Math.min(5, oldZoom + delta));
     if (newZoom === oldZoom) return;
-    // Mouse position relative to viewport center (screen coords)
     const mx = e.clientX - window.innerWidth / 2;
     const my = e.clientY - window.innerHeight / 2;
-    // Adjust viewport so canvas point under cursor stays fixed
     store.viewport.x = mx - (mx - store.viewport.x) * (newZoom / oldZoom);
     store.viewport.y = my - (my - store.viewport.y) * (newZoom / oldZoom);
     store.viewport.zoom = newZoom;
@@ -338,7 +330,6 @@
 
   function findNodeAt(canvasX: number, canvasY: number): CanvasNode | undefined {
     const p = { x: canvasX, y: canvasY };
-    // Prefer non-group nodes over group nodes
     for (let i = store.nodes.length - 1; i >= 0; i--) {
       if (store.nodes[i].type !== "group" && pointInNode(store.nodes[i], p)) return store.nodes[i];
     }
@@ -356,7 +347,6 @@
     return "default";
   }
 
-  /** Returns true if >50% of child's area overlaps the group */
   function isContainedInGroup(child: CanvasNode, group: CanvasNode): boolean {
     const overlapX = Math.max(0, Math.min(child.x + child.width, group.x + group.width) - Math.max(child.x, group.x));
     const overlapY = Math.max(0, Math.min(child.y + child.height, group.y + group.height) - Math.max(child.y, group.y));
@@ -366,12 +356,10 @@
   }
 
   function collectDragNodes(anchorId: string): DragNodeStart[] {
-    // If anchor is part of multi-selection, drag all selected nodes
     const baseIds = store.selectedNodeIds.includes(anchorId) && store.selectedNodeIds.length > 1
       ? [...store.selectedNodeIds]
       : [anchorId];
 
-    // For any group nodes in the set, add contained children
     const idSet = new Set(baseIds);
     for (const id of baseIds) {
       const node = store.nodes.find(n => n.id === id);
@@ -401,7 +389,6 @@
   }
 
   function handleMouseDown(e: MouseEvent) {
-    // Middle mouse always pans, regardless of mode
     if (e.button === 1) {
       e.preventDefault();
       didDrag = false;
@@ -423,14 +410,11 @@
     const node = findNodeAt(canvas.x, canvas.y);
 
     if (e.button === 0) {
-      // Left click
       e.preventDefault();
       didDrag = false;
 
       if (node) {
-        // Ctrl+click: toggle selection only, no drag
         if (e.ctrlKey) return;
-        // Left drag on node → move (all selected if part of selection)
         const wasSelected = store.selectedNodeIds.includes(node.id);
         if (!wasSelected) store.selectNode(node.id);
         store.pushSnapshot();
@@ -445,7 +429,6 @@
         };
         document.body.style.cursor = "grabbing";
       } else {
-        // Left drag on background → pan
         dragging = {
           type: "pan",
           startMouseX: e.clientX,
@@ -458,12 +441,10 @@
         document.body.style.cursor = "grabbing";
       }
     } else if (e.button === 2) {
-      // Right click
       e.preventDefault();
       didDrag = false;
 
       if (node) {
-        // Right drag on node → resize (all selected if part of selection)
         if (!store.selectedNodeIds.includes(node.id)) store.selectNode(node.id);
         store.pushSnapshot();
         const midX = node.x + node.width / 2;
@@ -486,7 +467,6 @@
         };
         document.body.style.cursor = cursorForResizeEdge(resizeEdge);
       } else {
-        // Right drag on background → visual selection
         store.enterVisual(canvas.x, canvas.y);
         mouseVisualEnd = { x: canvas.x, y: canvas.y };
         dragging = {
@@ -574,7 +554,6 @@
       } else {
         store.popSnapshot();
       }
-      // Deselect if it was a temporary selection during drag
       if (dragging.tempSelected && didDrag) {
         store.deselectAll();
       }
@@ -604,22 +583,11 @@
     store.deselectAll();
   }
 
-  const MODE_LABELS: Record<string, string> = {
-    normal: "NORMAL", insert: "INSERT", connect: "CONNECT", move: "MOVE", resize: "RESIZE", search: "SEARCH", visual: "VISUAL",
-  };
-  const MODE_COLORS: Record<string, string> = {
-    normal: UI_COLORS.mode_normal, insert: UI_COLORS.mode_insert, connect: UI_COLORS.mode_connect,
-    move: UI_COLORS.mode_move, resize: UI_COLORS.mode_resize, search: UI_COLORS.mode_search,
-    visual: UI_COLORS.mode_visual,
-  };
-  const modeLabel = $derived(MODE_LABELS[store.mode] ?? "NORMAL");
-  const modeColor = $derived(MODE_COLORS[store.mode] ?? UI_COLORS.mode_normal);
   const colors = $derived(store.config!.colors);
 
   let containerEl: HTMLDivElement | undefined = $state();
-  let searchInputEl: HTMLInputElement | undefined = $state();
+  let searchBarRef: SearchBar | undefined = $state();
 
-  // Derive search-related values for Node props
   const isSearchMode = $derived(store.mode === "search");
   const searchMatchSet = $derived(new Set(store.searchMatchIds));
   const currentMatchId = $derived(
@@ -629,27 +597,12 @@
   // Focus search input when entering search mode
   $effect(() => {
     if (isSearchMode && !store.searchConfirmed) {
-      requestAnimationFrame(() => searchInputEl?.focus());
+      requestAnimationFrame(() => searchBarRef?.focus());
     }
   });
 
-  function handleSearchKeydown(e: KeyboardEvent) {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      store.confirmSearch();
-    } else if (e.key === "Escape") {
-      e.preventDefault();
-      store.exitSearch();
-    } else if (e.key === "Tab") {
-      e.preventDefault();
-      if (e.shiftKey) store.searchPrev();
-      else store.searchNext();
-    }
-  }
-
   onMount(() => {
     containerEl?.focus();
-    // Must add wheel listener with passive:false to allow preventDefault on pinch-zoom
     containerEl?.addEventListener("wheel", handleWheel, { passive: false });
     return () => containerEl?.removeEventListener("wheel", handleWheel);
   });
@@ -676,11 +629,7 @@
     background-color: {colors.background};
   "
 >
-  <!-- Crosshair -->
-  <div class="crosshair" class:hidden={store.mode === "insert" || inputMode === "mouse"} class:connect-crosshair={store.mode === "connect"} class:visual-crosshair={store.mode === "visual"}>
-    <div class="crosshair-h" style="--ch-color: {colors.crosshair};"></div>
-    <div class="crosshair-v" style="--ch-color: {colors.crosshair};"></div>
-  </div>
+  <Crosshair mode={store.mode} {inputMode} crosshairColor={colors.crosshair} />
 
   <!-- Canvas plane -->
   <div
@@ -706,19 +655,11 @@
       {#if store.mode === "connect" && store.connectFromNodeId}
         {@const fromNode = store.nodes.find(n => n.id === store.connectFromNodeId)}
         {#if fromNode}
-          {@const center = getCanvasCenter()}
-          {@const target = getNodeAtCenter()}
-          {@const from = store.connectFromSide ? attachmentPoint(fromNode, store.connectFromSide) : { x: fromNode.x + fromNode.width / 2, y: fromNode.y + fromNode.height / 2 }}
-          {@const to = (target && target.id !== store.connectFromNodeId) ? attachmentPoint(target, detectSide(target, center)) : center}
-          {@const dx = to.x - from.x}
-          {@const bezierPath = `M ${from.x} ${from.y} C ${from.x + dx * 0.5} ${from.y}, ${to.x - dx * 0.5} ${to.y}, ${to.x} ${to.y}`}
-          {@const angle = Math.atan2(to.y - from.y, to.x - from.x) * (180 / Math.PI)}
-          <path d={bezierPath} stroke={UI_COLORS.connect_color} stroke-width="2" fill="none" stroke-dasharray="6 4" opacity="0.8" />
-          <polygon
-            points="-8,-4 0,0 -8,4"
-            fill={UI_COLORS.connect_color}
-            opacity="0.8"
-            transform="translate({to.x},{to.y}) rotate({angle})"
+          <ConnectPreview
+            {fromNode}
+            connectFromSide={store.connectFromSide}
+            center={getCanvasCenter()}
+            targetNode={getNodeAtCenter()}
           />
         {/if}
       {/if}
@@ -726,15 +667,7 @@
 
     <!-- Visual mode selection rectangle -->
     {#if store.mode === "visual" && store.visualOrigin}
-      {@const end = mouseVisualEnd ?? getCanvasCenter()}
-      {@const rx = Math.min(store.visualOrigin.x, end.x)}
-      {@const ry = Math.min(store.visualOrigin.y, end.y)}
-      {@const rw = Math.abs(end.x - store.visualOrigin.x)}
-      {@const rh = Math.abs(end.y - store.visualOrigin.y)}
-      <div
-        class="visual-rect"
-        style="left: {rx}px; top: {ry}px; width: {rw}px; height: {rh}px;"
-      ></div>
+      <VisualRect origin={store.visualOrigin} end={mouseVisualEnd ?? getCanvasCenter()} />
     {/if}
 
     <!-- Node layer: groups first (behind), then regular nodes on top -->
@@ -751,7 +684,7 @@
         onSelect={handleNodeClick}
         onUpdate={store.updateNode}
         onExitInsert={() => store.exitInsert()}
-        colors={colors}
+        {colors}
         resolveColor={store.resolveColor}
       />
     {/each}
@@ -768,7 +701,7 @@
         onSelect={handleNodeClick}
         onUpdate={store.updateNode}
         onExitInsert={() => store.exitInsert()}
-        colors={colors}
+        {colors}
         resolveColor={store.resolveColor}
       />
     {/each}
@@ -780,74 +713,45 @@
         {@const fn = store.nodes.find(n => n.id === selEdge.fromNode)}
         {@const tn = store.nodes.find(n => n.id === selEdge.toNode)}
         {#if fn && tn}
-          {@const mx = (fn.x + fn.width / 2 + tn.x + tn.width / 2) / 2}
-          {@const my = (fn.y + fn.height / 2 + tn.y + tn.height / 2) / 2}
-          <div class="edge-label-editor" style="left: {mx}px; top: {my}px;">
-            <input
-              bind:this={edgeLabelInputEl}
-              bind:value={edgeLabelValue}
-              onkeydown={(e) => { if (e.key === 'Enter' || e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); finishEdgeLabelEdit(); }}}
-              class="edge-label-input"
-              placeholder=""
-            />
-          </div>
+          <EdgeLabelEditor
+            bind:this={edgeLabelEditorRef}
+            edge={selEdge}
+            fromNode={fn}
+            toNode={tn}
+            value={edgeLabelValue}
+            onValueChange={(v) => edgeLabelValue = v}
+            onFinish={finishEdgeLabelEdit}
+          />
         {/if}
       {/if}
     {/if}
   </div>
 
-  <!-- Search bar -->
   {#if store.mode === "search"}
-    <div class="search-bar" style="background: {colors.status_bar_bg}; color: {colors.text};">
-      <span class="search-prefix">/</span>
-      {#if store.searchConfirmed}
-        <span class="search-query">{store.searchQuery}</span>
-      {:else}
-        <input
-          bind:this={searchInputEl}
-          class="search-input"
-          type="text"
-          value={store.searchQuery}
-          oninput={(e) => store.setSearchQuery(e.currentTarget.value)}
-          onkeydown={handleSearchKeydown}
-          placeholder="search..."
-          style="color: {colors.text};"
-        />
-      {/if}
-      <span class="search-count">
-        {#if store.searchQuery.length === 0}
-          type to search
-        {:else if store.searchMatchIds.length === 0}
-          no matches
-        {:else}
-          {store.searchCurrentIndex + 1}/{store.searchMatchIds.length}
-        {/if}
-      </span>
-      {#if store.searchConfirmed}
-        <span class="search-hint">n/N:navigate Esc:close</span>
-      {:else}
-        <span class="search-hint">Tab/S-Tab:cycle Enter:confirm Esc:cancel</span>
-      {/if}
-    </div>
+    <SearchBar
+      bind:this={searchBarRef}
+      searchQuery={store.searchQuery}
+      searchConfirmed={store.searchConfirmed}
+      searchMatchIds={store.searchMatchIds}
+      searchCurrentIndex={store.searchCurrentIndex}
+      {colors}
+      onInput={store.setSearchQuery}
+      onConfirm={store.confirmSearch}
+      onExit={store.exitSearch}
+      onNext={store.searchNext}
+      onPrev={store.searchPrev}
+    />
   {/if}
 
-  <!-- Status bar -->
-  <div class="status-bar" style="background: {colors.status_bar_bg}; color: {colors.status_bar_text};">
-    <span class="mode-indicator" style="color: {modeColor}; border-color: {modeColor};">
-      {modeLabel}
-    </span>
-    <span>
-      ({Math.round(-store.viewport.x / store.viewport.zoom)}, {Math.round(-store.viewport.y / store.viewport.zoom)})
-    </span>
-    <span>{Math.round(store.viewport.zoom * 100)}%</span>
-    <span>{store.nodes.length} nodes</span>
-    {#if hints.length > 0}
-      <span class="hint">{hints.join(" ")}</span>
-    {/if}
-    {#if store.filePath}
-      <span class="filepath">{store.filePath}</span>
-    {/if}
-  </div>
+  <StatusBar
+    mode={store.mode}
+    viewport={store.viewport}
+    nodeCount={store.nodes.length}
+    {hints}
+    filePath={store.filePath}
+    statusBarBg={colors.status_bar_bg}
+    statusBarText={colors.status_bar_text}
+  />
 </div>
 
 <style>
@@ -882,154 +786,5 @@
 
   .edge-layer :global(path) {
     pointer-events: stroke;
-  }
-
-  .crosshair {
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    pointer-events: none;
-    z-index: 100;
-  }
-
-  .crosshair.hidden {
-    display: none;
-  }
-
-  .crosshair.connect-crosshair .crosshair-h,
-  .crosshair.connect-crosshair .crosshair-v {
-    background: var(--connect-color) !important;
-  }
-
-  .crosshair.visual-crosshair .crosshair-h,
-  .crosshair.visual-crosshair .crosshair-v {
-    background: var(--visual-color) !important;
-  }
-
-  .crosshair-h,
-  .crosshair-v {
-    position: absolute;
-    background: var(--ch-color);
-    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.7);
-  }
-
-  .crosshair-h {
-    width: 20px;
-    height: 2px;
-    top: -1px;
-    left: -10px;
-  }
-
-  .crosshair-v {
-    width: 2px;
-    height: 20px;
-    top: -10px;
-    left: -1px;
-  }
-
-  .status-bar {
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    height: 28px;
-    display: flex;
-    align-items: center;
-    gap: 16px;
-    padding: 0 12px;
-    font-size: 12px;
-    font-family: monospace;
-    z-index: 200;
-  }
-
-  .mode-indicator {
-    font-weight: bold;
-    border: 1px solid;
-    padding: 1px 6px;
-    border-radius: 3px;
-  }
-
-  .hint {
-    opacity: 0.6;
-  }
-
-  .filepath {
-    margin-left: auto;
-    opacity: 0.4;
-  }
-
-  .edge-label-editor {
-    position: absolute;
-    transform: translate(-50%, -50%);
-    z-index: 50;
-  }
-
-  .search-bar {
-    position: fixed;
-    bottom: 28px;
-    left: 0;
-    right: 0;
-    height: 32px;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 0 12px;
-    font-size: 14px;
-    font-family: monospace;
-    z-index: 200;
-    border-top: 1px solid var(--subtle-border);
-  }
-
-  .search-prefix {
-    opacity: 0.5;
-    font-weight: bold;
-  }
-
-  .search-input {
-    background: transparent;
-    border: none;
-    outline: none;
-    font-family: monospace;
-    font-size: 14px;
-    flex: 1;
-    min-width: 0;
-  }
-
-  .search-query {
-    flex: 1;
-    min-width: 0;
-  }
-
-  .search-count {
-    opacity: 0.6;
-    font-size: 12px;
-    white-space: nowrap;
-  }
-
-  .search-hint {
-    opacity: 0.4;
-    font-size: 11px;
-    white-space: nowrap;
-  }
-
-  .visual-rect {
-    position: absolute;
-    border: 2px dashed var(--visual-color);
-    background: rgba(255, 158, 100, 0.08);
-    pointer-events: none;
-    z-index: 10;
-  }
-
-  .edge-label-input {
-    background: var(--edge-label-bg);
-    color: var(--edge-label-text);
-    border: 1px solid var(--selected-color);
-    border-radius: 4px;
-    padding: 2px 8px;
-    font-size: 12px;
-    font-family: monospace;
-    text-align: center;
-    outline: none;
-    min-width: 80px;
   }
 </style>

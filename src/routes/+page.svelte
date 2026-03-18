@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import Canvas from "$lib/Canvas.svelte";
-  import { getStore } from "$lib/canvas-store.svelte";
+  import { getStore } from "$lib/stores/index";
   import { UI_COLORS } from "$lib/constants";
 
   const store = getStore();
