@@ -3,8 +3,8 @@
   import { marked } from "./markdown";
   import MarkdownEditor from "./MarkdownEditor.svelte";
   import type { CanvasNode, ConfigColors } from "./types";
-  import { UI_COLORS } from "./constants";
-  import { getNodeDisplayText } from "./utils";
+  import { UI_COLORS, HEADING_ZOOM_THRESHOLD } from "./constants";
+  import { getNodeDisplayText, getNodeHeadingOrFirstLine } from "./utils";
 
   interface Props {
     node: CanvasNode;
@@ -20,9 +20,11 @@
     onExitInsert: () => void;
     colors: ConfigColors;
     resolveColor: (preset: string | undefined) => string | undefined;
+    zoom?: number;
   }
 
-  let { node, editing, selected = false, hovered, connectSource = false, connectTarget = false, dimmed = false, searchQuery = "", onSelect, onUpdate, onExitInsert, colors, resolveColor }: Props = $props();
+  let { node, editing, selected = false, hovered, connectSource = false, connectTarget = false, dimmed = false, searchQuery = "", onSelect, onUpdate, onExitInsert, colors, resolveColor, zoom = 1 }: Props = $props();
+  const isOverview = $derived(zoom < HEADING_ZOOM_THRESHOLD);
   let editText = $state("");
   let wasEditing = false;
 
@@ -106,6 +108,10 @@
       bgColor={bgColor}
       textColor={textColor}
     />
+  {:else if isOverview}
+    <div class="node-overview">
+      {getNodeHeadingOrFirstLine(node)}
+    </div>
   {:else}
     <div class="node-content">
       {@html getRenderedHtml()}
@@ -156,6 +162,22 @@
 
   .node.group {
     border-style: dashed;
+  }
+
+  .node-overview {
+    padding: 8px 12px;
+    font-size: 1.6em;
+    font-weight: 600;
+    line-height: 1.2;
+    height: 100%;
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .node-content {

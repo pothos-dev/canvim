@@ -595,6 +595,7 @@
         onExitInsert={() => store.exitInsert()}
         {colors}
         resolveColor={store.resolveColor}
+        zoom={store.viewport.zoom}
       />
     {/each}
 

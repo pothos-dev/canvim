@@ -42,3 +42,4 @@ export const EDGE_HIT_THRESHOLD = 24;
 export const COLOR_PRESETS = ["red", "orange", "yellow", "green", "cyan", "purple"] as const;
 export const PAN_ACCEL_MAX = 4;
 export const PAN_ACCEL_RAMP = 16;
+export const HEADING_ZOOM_THRESHOLD = 0.5;
