@@ -88,6 +88,7 @@ function directionalCommands(
   group: string,
   configPrefix: string,
   action: "pan" | "move" | "resize" | "connect_pan",
+  configSep: string = ".",
 ): Command[] {
   const dirs = [
     { suffix: "left", dx: -1, dy: 0, arrow: "ArrowLeft" },
@@ -102,7 +103,7 @@ function directionalCommands(
       mode,
       label,
       group,
-      configKey: `${configPrefix}.${d.suffix}`,
+      configKey: `${configPrefix}${configSep}${d.suffix}`,
       available: always,
       execute: dirExecutor(d.dx, d.dy, action),
     });
@@ -111,7 +112,7 @@ function directionalCommands(
       mode,
       label,
       group,
-      configKey: `${configPrefix}.${d.suffix}`,
+      configKey: `${configPrefix}${configSep}${d.suffix}`,
       hidden: true,
       available: always,
       execute: dirExecutor(d.dx, d.dy, action),
@@ -188,7 +189,7 @@ const deleteAvailable = (ctx: CommandContext) => !!ctx.nodeUnderCursor || !!ctx.
 
 export const commands: Command[] = [
   // === NORMAL MODE ===
-  ...directionalCommands("normal", "pan", "pan", "pan", "normal.pan", "pan"),
+  ...directionalCommands("normal", "pan", "pan", "pan", "normal.pan", "pan", "_"),
 
   // Zoom
   { id: "zoom_in", mode: "normal", label: "zoom", group: "zoom", configKey: "normal.zoom_in", available: always,
