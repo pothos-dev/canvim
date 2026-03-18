@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { Mode } from "../stores/mode.svelte";
-  import type { Viewport } from "../types";
+  import type { Viewport, Point } from "../types";
   import { UI_COLORS } from "../constants";
 
   interface Props {
@@ -11,9 +11,11 @@
     filePath: string | null;
     statusBarBg: string;
     statusBarText: string;
+    inputMode: "mouse" | "keyboard";
+    mouseCanvasPos: Point;
   }
 
-  let { mode, viewport, nodeCount, hints, filePath, statusBarBg, statusBarText }: Props = $props();
+  let { mode, viewport, nodeCount, hints, filePath, statusBarBg, statusBarText, inputMode, mouseCanvasPos }: Props = $props();
 
   const MODE_LABELS: Record<string, string> = {
     normal: "NORMAL", insert: "INSERT", connect: "CONNECT", move: "MOVE", resize: "RESIZE", search: "SEARCH", visual: "VISUAL",
@@ -38,7 +40,11 @@
       {modeLabel}
     </span>
     <span>
-      ({Math.round(-viewport.x / viewport.zoom)}, {Math.round(-viewport.y / viewport.zoom)})
+      {#if inputMode === "mouse"}
+        ({Math.round(mouseCanvasPos.x)}, {Math.round(mouseCanvasPos.y)})
+      {:else}
+        ({Math.round(-viewport.x / viewport.zoom)}, {Math.round(-viewport.y / viewport.zoom)})
+      {/if}
     </span>
     <span>{Math.round(viewport.zoom * 100)}%</span>
     <span>{nodeCount} nodes</span>

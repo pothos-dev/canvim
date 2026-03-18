@@ -717,6 +717,8 @@
     filePath={store.filePath}
     statusBarBg={colors.status_bar_bg}
     statusBarText={colors.status_bar_text}
+    {inputMode}
+    {mouseCanvasPos}
   />
 </div>
 
