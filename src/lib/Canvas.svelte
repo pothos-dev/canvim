@@ -342,7 +342,8 @@
       didDrag = false;
 
       if (node) {
-        if (!store.selectedNodeIds.includes(node.id)) store.selectNode(node.id);
+        const wasSelected = store.selectedNodeIds.includes(node.id);
+        if (!wasSelected) store.selectNode(node.id);
         store.pushSnapshot();
         const midX = node.x + node.width / 2;
         const midY = node.y + node.height / 2;
@@ -360,7 +361,7 @@
           resizeEdge,
           startViewportX: 0,
           startViewportY: 0,
-          tempSelected: false,
+          tempSelected: !wasSelected,
         };
         document.body.style.cursor = cursorForResizeEdge(resizeEdge);
       } else {
@@ -451,7 +452,7 @@
       } else {
         store.popSnapshot();
       }
-      if (dragging.tempSelected && didDrag) {
+      if (dragging.tempSelected && (dragging.type === "resize" || didDrag)) {
         store.deselectAll();
       }
     } else if (dragging.type === "visual") {
