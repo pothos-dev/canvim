@@ -1,4 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 import type { Canvas, CanvasNode, Config, Edge, Side } from "../types";
 import { getNodeText } from "../utils";
 import { getModeStore } from "./mode.svelte";
@@ -90,6 +91,7 @@ async function init() {
   if (data.file_path) {
     await load(data.file_path);
   }
+  listen("canvas-file-changed", () => reload());
 }
 
 async function load(path: string) {
@@ -97,6 +99,16 @@ async function load(path: string) {
   const data = (await invoke("read_canvas", { path })) as Canvas;
   nodes = data.nodes;
   edges = data.edges;
+}
+
+async function reload() {
+  if (!filePath) return;
+  const data = (await invoke("read_canvas", { path: filePath })) as Canvas;
+  nodes = data.nodes;
+  edges = data.edges;
+  // Reset undo history since external changes invalidate it
+  history.length = 0;
+  future.length = 0;
 }
 
 function addNode(x: number, y: number): string {

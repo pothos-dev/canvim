@@ -1,7 +1,10 @@
+use notify::{EventKind, RecommendedWatcher, RecursiveMode, Watcher};
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
-use tauri::Manager;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
+use tauri::Emitter;
 use tauri_plugin_cli::CliExt;
 
 // --- Config macro ---
@@ -386,6 +389,7 @@ pub struct Edge {
 pub struct AppState {
     pub file_path: Option<String>,
     pub config: Config,
+    pub self_save: Arc<AtomicBool>,
 }
 
 // --- Commands ---
@@ -422,9 +426,14 @@ fn read_canvas(path: String) -> Result<Canvas, String> {
 }
 
 #[tauri::command]
-fn save_canvas(path: String, data: Canvas) -> Result<(), String> {
+fn save_canvas(
+    path: String,
+    data: Canvas,
+    state: tauri::State<AppState>,
+) -> Result<(), String> {
     let json =
         serde_json::to_string_pretty(&data).map_err(|e| format!("Failed to serialize: {}", e))?;
+    state.self_save.store(true, Ordering::SeqCst);
     fs::write(&path, json).map_err(|e| format!("Failed to write file: {}", e))
 }
 
@@ -450,12 +459,47 @@ pub fn run() {
         }
     };
 
+    let self_save = Arc::new(AtomicBool::new(false));
+
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_cli::init())
         .manage(AppState {
-            file_path,
+            file_path: file_path.clone(),
             config,
+            self_save: self_save.clone(),
+        })
+        .setup(move |app| {
+            if let Some(ref path) = file_path {
+                let handle = app.handle().clone();
+                let watch_path = PathBuf::from(path);
+                let self_save = self_save.clone();
+
+                // Keep the watcher alive by leaking it (lives for app lifetime)
+                let mut watcher: RecommendedWatcher =
+                    notify::recommended_watcher(move |res: Result<notify::Event, _>| {
+                        if let Ok(event) = res {
+                            if matches!(
+                                event.kind,
+                                EventKind::Modify(_) | EventKind::Create(_)
+                            ) {
+                                if self_save.swap(false, Ordering::SeqCst) {
+                                    return; // ignore our own save
+                                }
+                                let _ = handle.emit("canvas-file-changed", ());
+                            }
+                        }
+                    })
+                    .expect("failed to create file watcher");
+
+                watcher
+                    .watch(&watch_path, RecursiveMode::NonRecursive)
+                    .expect("failed to watch canvas file");
+
+                // Leak the watcher so it lives for the entire app lifetime
+                std::mem::forget(watcher);
+            }
+            Ok(())
         })
         .invoke_handler(tauri::generate_handler![
             init,
