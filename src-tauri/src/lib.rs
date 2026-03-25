@@ -475,6 +475,15 @@ pub fn run() {
                 let watch_path = PathBuf::from(path);
                 let self_save = self_save.clone();
 
+                // Create empty canvas file if it doesn't exist
+                if !watch_path.exists() {
+                    if let Some(parent) = watch_path.parent() {
+                        fs::create_dir_all(parent).expect("failed to create parent directories");
+                    }
+                    fs::write(&watch_path, "{\"nodes\":[],\"edges\":[]}")
+                        .expect("failed to create canvas file");
+                }
+
                 // Keep the watcher alive by leaking it (lives for app lifetime)
                 let mut watcher: RecommendedWatcher =
                     notify::recommended_watcher(move |res: Result<notify::Event, _>| {
